@@ -1,0 +1,78 @@
+# This workflow builds and releases the tool on manual dispatch.
+# It reads VERSION from Makefile and creates the vX.Y.Z tag automatically.
+
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+
+  release:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '^1.25.0'
+
+    - name: Resolve version from Makefile
+      id: version
+      shell: bash
+      run: |
+        RAW_VERSION=$(sed -nE 's/^VERSION[[:space:]]*:=[[:space:]]*([0-9A-Za-z._-]+)$/\1/p' Makefile | head -n1)
+        if [ -z "$RAW_VERSION" ]; then
+          echo "failed to resolve VERSION from Makefile" >&2
+          exit 1
+        fi
+
+        TAG="v${RAW_VERSION#v}"
+        echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+        echo "Release tag: $TAG"
+
+    - name: Create and push release tag
+      shell: bash
+      run: |
+        TAG="${{ steps.version.outputs.tag }}"
+        if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+          echo "Tag already exists on origin: $TAG"
+          exit 1
+        fi
+
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git tag -a "$TAG" -m "Release $TAG"
+        git push origin "$TAG"
+
+    - name: Run tests
+      run: make test
+
+    - name: Build release binaries
+      run: make release-build
+
+    - name: Create release archives
+      run: make release-archives
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ steps.version.outputs.tag }}
+        files: |
+          vorbere_linux-amd64.tar.gz
+          vorbere_linux-arm.tar.gz
+          vorbere_linux-arm64.tar.gz
+          vorbere_darwin-amd64.tar.gz
+          vorbere_darwin-arm64.tar.gz
+          vorbere_win-amd64.tar.gz
+        generate_release_notes: true
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
