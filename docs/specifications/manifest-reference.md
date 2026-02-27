@@ -2,7 +2,7 @@
 
 This document defines the `vorbere.yaml` manifest and `vorbere.lock` behavior.
 
-Current format: `version: 3` (ppkgmgr-compatible shape with `vorbere` extensions).
+Current format: `version: 3` (ppkgmgr-compatible repository/file shape).
 
 ## vorbere.yaml
 
@@ -60,6 +60,11 @@ Supported `repositories[].files[]` fields:
 - `mode` (optional): octal output file mode string (example: `"0755"`)
 - `digest` (optional): BLAKE3 hex digest of final output
 
+Notes:
+
+- `digest` is a plain BLAKE3 hex string (no `algo:` prefix).
+- When `digest` is set and verification fails, sync returns an error.
+
 Currently unsupported in `vorbere` (explicitly rejected when set):
 
 - `artifact_digest`
@@ -84,7 +89,7 @@ When backup is `timestamp`, existing destination is copied before overwrite:
 
 Stored at repository root (same root used for command config).
 
-Used for three-way conflict detection and update tracking.
+Used for three-way conflict detection and update tracking when `three_way` mode is used.
 
 Top-level fields:
 

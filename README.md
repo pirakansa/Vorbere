@@ -5,6 +5,8 @@
 - manifest-driven file sync
 - language-agnostic task execution (`run test`, `run lint`, `run ci`)
 
+Manifest format is `version: 3` with `repositories[].files[]` (ppkgmgr-compatible shape).
+
 ## Install
 
 ```bash

@@ -37,6 +37,11 @@ Behavior:
 
 Sync files from `repositories` in `vorbere.yaml`.
 
+Default behavior:
+
+- merge mode: `overwrite`
+- backup strategy: `none`
+
 Flags:
 
 - `--mode three_way|overwrite|keep_local`: override merge mode
