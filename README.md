@@ -21,6 +21,12 @@ vorbere sync
 vorbere run ci
 ```
 
+## Shell Completion
+
+```bash
+vorbere completion --help
+```
+
 ## Documentation
 
 - User guide: [docs/user-guides/bootkit-devcontainer-workflow.md](docs/user-guides/bootkit-devcontainer-workflow.md)
