@@ -18,6 +18,11 @@ const (
 	MergeThreeWay  = "three_way"
 	MergeOverwrite = "overwrite"
 	MergeKeepLocal = "keep_local"
+
+	outcomeCreated   = "created"
+	outcomeUpdated   = "updated"
+	outcomeUnchanged = "unchanged"
+	outcomeSkipped   = "skipped"
 )
 
 var ErrSyncConflict = errors.New("sync conflict")
@@ -73,10 +78,7 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 			return nil, err
 		}
 
-		target := rule.Path
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(opts.RootDir, target)
-		}
+		target := resolveTargetPath(opts.RootDir, rule.Path)
 
 		mode := chooseMergeMode(rule.Merge, opts.ModeOverride)
 		backup := chooseBackup(rule.Backup, opts.Backup)
@@ -89,23 +91,9 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 			return nil, err
 		}
 
-		switch outcome {
-		case "created":
-			res.Created++
-		case "updated":
-			res.Updated++
-		case "unchanged":
-			res.Unchanged++
-		case "skipped":
-			res.Skipped++
-		}
+		recordOutcome(res, outcome)
 		if applied {
-			lock.Files[target] = LockEntry{
-				SourceURL:   src.URL,
-				AppliedHash: shared.SHA256Hex(incoming),
-				SourceHash:  shared.SHA256Hex(incoming),
-				UpdatedAt:   opts.Now().UTC().Format(time.RFC3339),
-			}
+			lock.Files[target] = newLockEntry(src.URL, incoming, opts.Now)
 		}
 	}
 
@@ -129,7 +117,7 @@ func applyRule(targetPath string, incoming []byte, fileMode, mode, backup string
 
 	incomingHash := shared.SHA256Hex(incoming)
 	if exists && shared.SHA256Hex(current) == incomingHash {
-		return "unchanged", false, nil
+		return outcomeUnchanged, false, nil
 	}
 
 	switch mode {
@@ -137,7 +125,7 @@ func applyRule(targetPath string, incoming []byte, fileMode, mode, backup string
 		return writeTarget(targetPath, incoming, current, exists, fileMode, backup, opts)
 	case MergeKeepLocal:
 		if exists {
-			return "skipped", false, nil
+			return outcomeSkipped, false, nil
 		}
 		return writeTarget(targetPath, incoming, nil, false, fileMode, backup, opts)
 	case MergeThreeWay:
@@ -156,7 +144,7 @@ func applyRule(targetPath string, incoming []byte, fileMode, mode, backup string
 			return writeTarget(targetPath, incoming, current, true, fileMode, backup, opts)
 		}
 		if incomingHash == appliedHash {
-			return "skipped", false, nil
+			return outcomeSkipped, false, nil
 		}
 		return "", false, fmt.Errorf("%w: %s local and source changed", ErrSyncConflict, targetPath)
 	default:
@@ -167,9 +155,9 @@ func applyRule(targetPath string, incoming []byte, fileMode, mode, backup string
 func writeTarget(path string, incoming, current []byte, existed bool, fileMode, backup string, opts SyncOptions) (string, bool, error) {
 	if opts.DryRun {
 		if existed {
-			return "updated", false, nil
+			return outcomeUpdated, false, nil
 		}
-		return "created", false, nil
+		return outcomeCreated, false, nil
 	}
 	if existed {
 		if err := shared.BackupFile(path, current, backup, opts.Now()); err != nil {
@@ -187,9 +175,9 @@ func writeTarget(path string, incoming, current []byte, existed bool, fileMode, 
 		return "", false, err
 	}
 	if existed {
-		return "updated", true, nil
+		return outcomeUpdated, true, nil
 	}
-	return "created", true, nil
+	return outcomeCreated, true, nil
 }
 
 func resolveOutputMode(v string) (os.FileMode, error) {
@@ -254,4 +242,34 @@ func verifyChecksum(content []byte, checksum string) error {
 		return errors.New("checksum mismatch")
 	}
 	return nil
+}
+
+func resolveTargetPath(rootDir, path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(rootDir, path)
+}
+
+func recordOutcome(res *SyncResult, outcome string) {
+	switch outcome {
+	case outcomeCreated:
+		res.Created++
+	case outcomeUpdated:
+		res.Updated++
+	case outcomeUnchanged:
+		res.Unchanged++
+	case outcomeSkipped:
+		res.Skipped++
+	}
+}
+
+func newLockEntry(sourceURL string, incoming []byte, now func() time.Time) LockEntry {
+	hash := shared.SHA256Hex(incoming)
+	return LockEntry{
+		SourceURL:   sourceURL,
+		AppliedHash: hash,
+		SourceHash:  hash,
+		UpdatedAt:   now().UTC().Format(time.RFC3339),
+	}
 }

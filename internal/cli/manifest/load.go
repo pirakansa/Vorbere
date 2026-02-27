@@ -10,6 +10,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const manifestVersion = 3
+
 func LoadTaskConfig(path string) (*TaskConfig, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -61,7 +63,7 @@ func ValidateSyncConfig(cfg *SyncConfig) error {
 
 func normalizeTaskConfig(cfg *TaskConfig) {
 	if cfg.Version == 0 {
-		cfg.Version = 3
+		cfg.Version = manifestVersion
 	}
 	if cfg.Tasks == nil {
 		cfg.Tasks = map[string]TaskDef{}
@@ -82,37 +84,53 @@ func buildSyncConfig(taskCfg *TaskConfig) (*SyncConfig, error) {
 			return nil, fmt.Errorf("repositories[%d].url is required", repoIndex)
 		}
 		for fileIndex, file := range repo.Files {
-			if err := validateRepositoryFile(file, repoIndex, fileIndex); err != nil {
+			sourceID, source, rule, err := buildSyncEntry(repo, file, repoIndex, fileIndex)
+			if err != nil {
 				return nil, err
 			}
-			targetName := file.Rename
-			if strings.TrimSpace(targetName) == "" {
-				targetName = path.Base(file.FileName)
-			}
-			if targetName == "." || targetName == "/" || targetName == "" {
-				return nil, fmt.Errorf("repositories[%d].files[%d] could not determine output filename", repoIndex, fileIndex)
-			}
-			expandedOutDir := os.ExpandEnv(file.OutDir)
-			targetPath := filepath.Join(expandedOutDir, targetName)
-			sourceID := fmt.Sprintf("r%df%d", repoIndex, fileIndex)
-			cfg.Sources[sourceID] = Source{
-				URL:     joinURL(repo.URL, file.FileName),
-				Headers: repo.Headers,
-			}
-			rule := FileRule{
-				Source: sourceID,
-				Path:   targetPath,
-				Mode:   file.Mode,
-				Merge:  MergeOverwrite,
-			}
-			if strings.TrimSpace(file.Digest) != "" {
-				rule.Checksum = strings.TrimSpace(strings.ToLower(file.Digest))
-			}
+			cfg.Sources[sourceID] = source
 			cfg.Files = append(cfg.Files, rule)
 		}
 	}
 
 	return cfg, nil
+}
+
+func buildSyncEntry(repo Repository, file RepositoryFile, repoIndex, fileIndex int) (string, Source, FileRule, error) {
+	if err := validateRepositoryFile(file, repoIndex, fileIndex); err != nil {
+		return "", Source{}, FileRule{}, err
+	}
+
+	targetName := file.Rename
+	if strings.TrimSpace(targetName) == "" {
+		targetName = path.Base(file.FileName)
+	}
+	if targetName == "." || targetName == "/" || targetName == "" {
+		return "", Source{}, FileRule{}, fmt.Errorf(
+			"repositories[%d].files[%d] could not determine output filename",
+			repoIndex, fileIndex,
+		)
+	}
+
+	targetPath := filepath.Join(os.ExpandEnv(file.OutDir), targetName)
+	sourceID := fmt.Sprintf("r%df%d", repoIndex, fileIndex)
+	source := Source{
+		URL:     joinURL(repo.URL, file.FileName),
+		Headers: repo.Headers,
+	}
+	rule := FileRule{
+		Source:   sourceID,
+		Path:     targetPath,
+		Mode:     file.Mode,
+		Merge:    MergeOverwrite,
+		Checksum: normalizeDigest(file.Digest),
+	}
+
+	return sourceID, source, rule, nil
+}
+
+func normalizeDigest(v string) string {
+	return strings.TrimSpace(strings.ToLower(v))
 }
 
 func validateRepositoryFile(file RepositoryFile, repoIndex, fileIndex int) error {
