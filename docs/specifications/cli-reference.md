@@ -6,7 +6,7 @@
 
 ## Global flags
 
-- `--config <path>`: path to task config file (default: `vorbere.yaml`)
+- `--config <path|url>`: path or `http(s)` URL to task config file (default: `vorbere.yaml`)
 
 ## Commands
 

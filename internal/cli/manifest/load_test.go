@@ -1,6 +1,8 @@
 package manifest
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"path/filepath"
 	"testing"
 )
@@ -112,5 +114,43 @@ func TestResolveSyncConfigRejectsTaskWithoutRunOrDependsOn(t *testing.T) {
 	}
 	if _, err := ResolveSyncConfig(cfg, filepath.Join(temp, "vorbere.yaml")); err == nil {
 		t.Fatalf("expected validation error for task without run and depends_on")
+	}
+}
+
+func TestLoadTaskConfigFromRemoteURL(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("version: 3\n"))
+	}))
+	defer server.Close()
+
+	cfg, err := LoadTaskConfig(server.URL)
+	if err != nil {
+		t.Fatalf("LoadTaskConfig returned error: %v", err)
+	}
+	if cfg.Version != 3 {
+		t.Fatalf("expected version=3, got=%d", cfg.Version)
+	}
+}
+
+func TestLoadTaskConfigFromRemoteURLReturnsErrorOnNon2xx(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "not found", http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	if _, err := LoadTaskConfig(server.URL); err == nil {
+		t.Fatalf("expected error for non-2xx response")
+	}
+}
+
+func TestIsRemoteConfigLocation(t *testing.T) {
+	if !IsRemoteConfigLocation("https://example.com/vorbere.yaml") {
+		t.Fatalf("expected https URL to be remote config")
+	}
+	if !IsRemoteConfigLocation("http://example.com/vorbere.yaml") {
+		t.Fatalf("expected http URL to be remote config")
+	}
+	if IsRemoteConfigLocation("vorbere.yaml") {
+		t.Fatalf("expected local path to not be remote config")
 	}
 }
