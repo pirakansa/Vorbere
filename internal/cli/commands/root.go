@@ -26,7 +26,7 @@ func NewRootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	cmd.PersistentFlags().StringVar(&ctx.configPath, "config", "task.yaml", "path to task config")
+	cmd.PersistentFlags().StringVar(&ctx.configPath, "config", "vorbere.yaml", "path to task config")
 
 	cmd.AddCommand(newRunCmd(ctx))
 	cmd.AddCommand(newSyncCmd(ctx))

@@ -28,7 +28,7 @@ Rule of thumb:
 
 * Confirm you have write permission under `go env GOPATH` and that `go install` works.
 * On the first run, execute `go mod tidy` at the project root to make sure dependencies are intact.
-* Task runner: `task.yaml` via `vorbere run <task>` (CI uses the tasks described later).
+* Task runner: `vorbere.yaml` via `vorbere run <task>` (CI uses the tasks described later).
 
 ---
 
@@ -53,7 +53,7 @@ We follow the **Standard Go Project Layout**.
 ├─ pkg/                   # Reusable public logic
 ├─ test/                  # Test fixtures
 ├─ bin/                   # Build artifacts (generated; not tracked by Git)
-├─ task.yaml              # Task definitions for vorbere
+├─ vorbere.yaml              # Task definitions for vorbere
 └─ docs/                  # Documentation
 ```
 

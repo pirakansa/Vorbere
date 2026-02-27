@@ -52,13 +52,13 @@ jobs:
         git push origin "$TAG"
 
     - name: Run tests
-      run: go run ./cmd/vorbere --config task.yaml run test
+      run: go run ./cmd/vorbere --config vorbere.yaml run test
 
     - name: Build release binaries
-      run: go run ./cmd/vorbere --config task.yaml run release-build
+      run: go run ./cmd/vorbere --config vorbere.yaml run release-build
 
     - name: Create release archives
-      run: go run ./cmd/vorbere --config task.yaml run release-archives
+      run: go run ./cmd/vorbere --config vorbere.yaml run release-archives
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2

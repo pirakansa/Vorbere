@@ -40,8 +40,8 @@ func TestInitCommandCreatesFilesAndFailsOnSecondRun(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("first init failed: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(temp, "task.yaml")); err != nil {
-		t.Fatalf("task.yaml missing: %v", err)
+	if _, err := os.Stat(filepath.Join(temp, "vorbere.yaml")); err != nil {
+		t.Fatalf("vorbere.yaml missing: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(temp, "sync.yaml")); err != nil {
 		t.Fatalf("sync.yaml missing: %v", err)
@@ -71,8 +71,8 @@ func TestInitWithSyncRefCreatesOnlyTaskYAML(t *testing.T) {
 		t.Fatalf("init with sync ref failed: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(temp, "task.yaml")); err != nil {
-		t.Fatalf("task.yaml missing: %v", err)
+	if _, err := os.Stat(filepath.Join(temp, "vorbere.yaml")); err != nil {
+		t.Fatalf("vorbere.yaml missing: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(temp, "sync.yaml")); !os.IsNotExist(err) {
 		t.Fatalf("sync.yaml should not be created when --with-sync-ref is set, err=%v", err)
@@ -81,7 +81,7 @@ func TestInitWithSyncRefCreatesOnlyTaskYAML(t *testing.T) {
 
 func TestRunCommandReturnsDefinedExitCodes(t *testing.T) {
 	temp := t.TempDir()
-	configPath := filepath.Join(temp, "task.yaml")
+	configPath := filepath.Join(temp, "vorbere.yaml")
 	cfg := `version: v1
 tasks:
   ok:
@@ -90,7 +90,7 @@ tasks:
     run: "false"
 `
 	if err := os.WriteFile(configPath, []byte(cfg), 0o644); err != nil {
-		t.Fatalf("write task.yaml failed: %v", err)
+		t.Fatalf("write vorbere.yaml failed: %v", err)
 	}
 
 	ctx := &appContext{configPath: configPath}
@@ -118,7 +118,7 @@ tasks:
 }
 
 func TestRunCommandReturnsConfigErrorWhenTaskConfigMissing(t *testing.T) {
-	ctx := &appContext{configPath: filepath.Join(t.TempDir(), "missing-task.yaml")}
+	ctx := &appContext{configPath: filepath.Join(t.TempDir(), "missing-vorbere.yaml")}
 
 	cmd := newRunCmd(ctx)
 	cmd.SetArgs([]string{"test"})
@@ -151,7 +151,7 @@ sync:
       - source: src
         path: a.txt
 `
-	taskPath := filepath.Join(temp, "task.yaml")
+	taskPath := filepath.Join(temp, "vorbere.yaml")
 	if err := os.WriteFile(taskPath, []byte(taskBody), 0o644); err != nil {
 		t.Fatalf("write task config: %v", err)
 	}

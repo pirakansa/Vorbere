@@ -21,7 +21,7 @@ func TestResolveSyncConfigInlinePreferred(t *testing.T) {
 			},
 		},
 	}
-	resolved, err := ResolveSyncConfig(cfg, filepath.Join(temp, "task.yaml"))
+	resolved, err := ResolveSyncConfig(cfg, filepath.Join(temp, "vorbere.yaml"))
 	if err != nil {
 		t.Fatalf("ResolveSyncConfig returned error: %v", err)
 	}
@@ -47,7 +47,7 @@ files:
 	}
 
 	cfg := &TaskConfig{Version: "v1", Tasks: map[string]TaskDef{}}
-	resolved, err := ResolveSyncConfig(cfg, filepath.Join(temp, "task.yaml"))
+	resolved, err := ResolveSyncConfig(cfg, filepath.Join(temp, "vorbere.yaml"))
 	if err != nil {
 		t.Fatalf("ResolveSyncConfig returned error: %v", err)
 	}
@@ -78,7 +78,7 @@ files:
 		},
 	}
 
-	resolved, err := ResolveSyncConfig(cfg, filepath.Join(temp, "task.yaml"))
+	resolved, err := ResolveSyncConfig(cfg, filepath.Join(temp, "vorbere.yaml"))
 	if err != nil {
 		t.Fatalf("ResolveSyncConfig returned error: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestResolveSyncConfigRejectsTaskWithoutRunOrDependsOn(t *testing.T) {
 			"broken": {},
 		},
 	}
-	if _, err := ResolveSyncConfig(cfg, filepath.Join(temp, "task.yaml")); err == nil {
+	if _, err := ResolveSyncConfig(cfg, filepath.Join(temp, "vorbere.yaml")); err == nil {
 		t.Fatalf("expected validation error for task without run and depends_on")
 	}
 }

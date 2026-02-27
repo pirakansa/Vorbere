@@ -1,8 +1,8 @@
 # Manifest Reference
 
-This document describes `task.yaml`, `sync.yaml`, and `vorbere.lock` as implemented in the current codebase.
+This document describes `vorbere.yaml`, `sync.yaml`, and `vorbere.lock` as implemented in the current codebase.
 
-## task.yaml
+## vorbere.yaml
 
 ```yaml
 version: v1
@@ -35,7 +35,7 @@ Resolution order for sync config:
 
 1. `sync.inline` (highest priority)
 2. `sync.ref`
-3. `sync.yaml` in the same directory as `task.yaml`
+3. `sync.yaml` in the same directory as `vorbere.yaml`
 4. empty sync config
 
 ## sync.yaml

@@ -8,14 +8,14 @@ This guide shows a practical setup for repositories that want both:
 ## Prerequisites
 
 - `vorbere` is installed in the DevContainer.
-- The repository root contains `task.yaml` and `sync.yaml`.
+- The repository root contains `vorbere.yaml` and `sync.yaml`.
 - A persistent mount exists for personal agent state (example: `/workspaces/.persist`).
 
 ## 1. Start from the example files
 
 Copy and adapt:
 
-- `docs/examples/bootkit-devcontainer/task.yaml`
+- `docs/examples/bootkit-devcontainer/vorbere.yaml`
 - `docs/examples/bootkit-devcontainer/sync.yaml`
 
 Recommended minimum edits:
@@ -74,7 +74,7 @@ vorbere run test
 vorbere run ci
 ```
 
-The actual commands are resolved from `task.yaml`.
+The actual commands are resolved from `vorbere.yaml`.
 
 ## 5. Pattern for personal/auth files in DevContainer
 
@@ -92,4 +92,4 @@ This keeps local identity/auth files intact after container rebuilds.
 - Use `three_way` for repository-managed files committed to Git.
 - Use `keep_local` for personal files under persistent mounts.
 - Use `--backup timestamp` before large updates.
-- Run `vorbere tasks list` after updating `task.yaml`.
+- Run `vorbere tasks list` after updating `vorbere.yaml`.

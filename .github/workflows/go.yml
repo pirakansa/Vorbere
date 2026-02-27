@@ -22,10 +22,10 @@ jobs:
         go-version: '^1.25.0'
 
     - name: Lint
-      run: go run ./cmd/vorbere --config task.yaml run lint
+      run: go run ./cmd/vorbere --config vorbere.yaml run lint
 
     - name: Test
-      run: go run ./cmd/vorbere --config task.yaml run test
+      run: go run ./cmd/vorbere --config vorbere.yaml run test
 
     - name: Build
-      run: go run ./cmd/vorbere --config task.yaml run build
+      run: go run ./cmd/vorbere --config vorbere.yaml run build

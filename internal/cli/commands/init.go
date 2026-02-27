@@ -13,9 +13,9 @@ func newInitCmd() *cobra.Command {
 	var syncRef string
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Create task.yaml and sync.yaml templates",
+		Short: "Create vorbere.yaml and sync.yaml templates",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := writeIfNotExists("task.yaml", taskTemplate(syncRef)); err != nil {
+			if err := writeIfNotExists("vorbere.yaml", taskTemplate(syncRef)); err != nil {
 				return err
 			}
 			if syncRef == "" {
@@ -23,7 +23,7 @@ func newInitCmd() *cobra.Command {
 					return err
 				}
 			}
-			fmt.Println("initialized: task.yaml", ternary(syncRef == "", "and sync.yaml", ""))
+			fmt.Println("initialized: vorbere.yaml", ternary(syncRef == "", "and sync.yaml", ""))
 			return nil
 		},
 	}

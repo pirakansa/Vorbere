@@ -6,7 +6,7 @@
 
 ## Global flags
 
-- `--config <path>`: path to task config file (default: `task.yaml`)
+- `--config <path>`: path to task config file (default: `vorbere.yaml`)
 
 ## Commands
 
@@ -16,21 +16,21 @@ Create template files.
 
 Flags:
 
-- `--with-sync-ref <path-or-url>`: set `sync.ref` in generated `task.yaml`
+- `--with-sync-ref <path-or-url>`: set `sync.ref` in generated `vorbere.yaml`
 
 Behavior:
 
 - Fails if target files already exist.
-- Without `--with-sync-ref`, creates both `task.yaml` and `sync.yaml`.
-- With `--with-sync-ref`, creates only `task.yaml`.
+- Without `--with-sync-ref`, creates both `vorbere.yaml` and `sync.yaml`.
+- With `--with-sync-ref`, creates only `vorbere.yaml`.
 
 ### `vorbere tasks list`
 
-List task names from `task.yaml`.
+List task names from `vorbere.yaml`.
 
 ### `vorbere run <task> [-- args...]`
 
-Run one task from `task.yaml`.
+Run one task from `vorbere.yaml`.
 
 Behavior:
 

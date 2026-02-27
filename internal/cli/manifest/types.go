@@ -1,6 +1,6 @@
 package manifest
 
-// TaskConfig is the repository-level task configuration in task.yaml.
+// TaskConfig is the repository-level task configuration in vorbere.yaml.
 type TaskConfig struct {
 	Version string             `yaml:"version"`
 	Tasks   map[string]TaskDef `yaml:"tasks"`
