@@ -1,0 +1,94 @@
+version: 3
+
+tasks:
+  all:
+    depends_on: [build]
+    desc: default target equivalent
+
+  build:
+    run: |
+      mkdir -p ./bin/host
+      VERSION="$(cat VERSION)"
+      go build -tags="osusergo netgo" -ldflags="-s -w -X main.Version=${VERSION}" -trimpath -o ./bin/host/ ./cmd/vorbere
+    desc: build host binary
+
+  run:
+    run: go run -tags="osusergo netgo" ./cmd/vorbere
+    desc: run CLI
+
+  linux-amd64:
+    run: |
+      mkdir -p ./bin/linux-amd64
+      VERSION="$(cat VERSION)"
+      GOOS=linux GOARCH=amd64 go build -tags="osusergo netgo" -ldflags="-s -w -X main.Version=${VERSION}" -trimpath -o ./bin/linux-amd64/ ./cmd/vorbere
+    desc: build linux amd64 binary
+
+  linux-arm:
+    run: |
+      mkdir -p ./bin/linux-arm
+      VERSION="$(cat VERSION)"
+      GOOS=linux GOARCH=arm go build -tags="osusergo netgo" -ldflags="-s -w -X main.Version=${VERSION}" -trimpath -o ./bin/linux-arm/ ./cmd/vorbere
+    desc: build linux arm binary
+
+  linux-arm64:
+    run: |
+      mkdir -p ./bin/linux-arm64
+      VERSION="$(cat VERSION)"
+      GOOS=linux GOARCH=arm64 go build -tags="osusergo netgo" -ldflags="-s -w -X main.Version=${VERSION}" -trimpath -o ./bin/linux-arm64/ ./cmd/vorbere
+    desc: build linux arm64 binary
+
+  win-amd64:
+    run: |
+      mkdir -p ./bin/win-amd64
+      VERSION="$(cat VERSION)"
+      GOOS=windows GOARCH=amd64 go build -tags="osusergo netgo" -ldflags="-s -w -X main.Version=${VERSION}" -trimpath -o ./bin/win-amd64/ ./cmd/vorbere
+    desc: build windows amd64 binary
+
+  release-build:
+    depends_on: [linux-amd64, linux-arm, linux-arm64, win-amd64]
+    desc: build release binaries
+
+  release-archives:
+    depends_on: [release-build]
+    run: |
+      tar --gunzip --create --directory=./bin/linux-amd64/ --file=./vorbere_linux-amd64.tar.gz .
+      tar --gunzip --create --directory=./bin/linux-arm/ --file=./vorbere_linux-arm.tar.gz .
+      tar --gunzip --create --directory=./bin/linux-arm64/ --file=./vorbere_linux-arm64.tar.gz .
+      tar --gunzip --create --directory=./bin/win-amd64/ --file=./vorbere_win-amd64.tar.gz .
+    desc: package release archives
+
+  release:
+    depends_on: [release-archives]
+    desc: build and package release artifacts
+
+  debug:
+    run: go run -tags="debug osusergo netgo" ./cmd/vorbere
+    desc: run with debug tag
+
+  vet:
+    run: go vet -tags="osusergo netgo" ./...
+    desc: run go vet
+
+  staticcheck:
+    run: go tool staticcheck ./...
+    desc: run staticcheck
+
+  govulncheck:
+    run: go tool govulncheck -tags "osusergo netgo" ./...
+    desc: run govulncheck
+
+  lint:
+    depends_on: [vet, staticcheck]
+    desc: run lint checks
+
+  test:
+    depends_on: [lint, build]
+    run: go test -race -tags="osusergo netgo" -v ./...
+    desc: run tests
+
+  clean:
+    run: |
+      rm -fr ./bin
+      rm -f ./vorbere_*.tar.gz
+      go clean
+    desc: clean build artifacts

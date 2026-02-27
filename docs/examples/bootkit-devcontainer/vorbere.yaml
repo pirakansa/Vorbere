@@ -1,0 +1,50 @@
+version: 3
+
+tasks:
+  sync:
+    run: "vorbere sync --backup timestamp"
+    desc: sync bootkit-managed files into this repository
+
+  fmt:
+    run: "npm run format"
+    desc: format JS/TS sources
+
+  lint:
+    run: "npm run lint"
+    desc: run linter
+
+  test:
+    run: "npm test"
+    desc: run unit tests
+
+  build:
+    run: "npm run build"
+    desc: build project artifacts
+
+  ci:
+    depends_on: [sync, fmt, lint, test, build]
+    desc: run full local CI flow
+
+repositories:
+  - _comment: bootkit templates
+    url: https://raw.githubusercontent.com/pirakansa/bootkit/main/
+    files:
+      - file_name: AGENTS.md
+        out_dir: .
+        rename: AGENTS.md
+        mode: "0644"
+
+      - file_name: .devcontainer/devcontainer.json
+        out_dir: .devcontainer
+        rename: devcontainer.json
+        mode: "0644"
+
+      - file_name: .agents/skills/conventional-commits-authoring/SKILL.md
+        out_dir: .agents/skills/conventional-commits-authoring
+        rename: SKILL.md
+        mode: "0644"
+
+      - file_name: templates/codex/auth.json
+        out_dir: /workspaces/.persist/codex
+        rename: auth.json
+        mode: "0600"
