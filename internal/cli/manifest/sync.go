@@ -12,11 +12,12 @@ import (
 	"time"
 
 	"github.com/pirakansa/vorbere/internal/cli/shared"
+	pkgmanifest "github.com/pirakansa/vorbere/pkg/manifest"
 )
 
 const (
 	MergeThreeWay  = "three_way"
-	MergeOverwrite = "overwrite"
+	MergeOverwrite = pkgmanifest.MergeOverwrite
 	MergeKeepLocal = "keep_local"
 
 	outcomeCreated   = "created"
