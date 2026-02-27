@@ -1,0 +1,29 @@
+version: v1
+
+tasks:
+  sync:
+    run: "vorbere sync --profile devcontainer --backup timestamp"
+    desc: sync bootkit-managed files into this repository and devcontainer mount
+
+  fmt:
+    run: "npm run format"
+    desc: format JS/TS sources
+
+  lint:
+    run: "npm run lint"
+    desc: run linter
+
+  test:
+    run: "npm test"
+    desc: run unit tests
+
+  build:
+    run: "npm run build"
+    desc: build project artifacts
+
+  ci:
+    depends_on: [sync, fmt, lint, test, build]
+    desc: run full local CI flow
+
+sync:
+  ref: sync.yaml

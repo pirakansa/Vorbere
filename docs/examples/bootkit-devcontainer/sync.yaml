@@ -1,0 +1,44 @@
+version: v1
+
+# Current implementation supports HTTP sources in v1.
+# Use one source per remote file URL.
+sources:
+  bootkit-agents:
+    type: http
+    url: https://raw.githubusercontent.com/pirakansa/bootkit/main/AGENTS.md
+
+  bootkit-devcontainer:
+    type: http
+    url: https://raw.githubusercontent.com/pirakansa/bootkit/main/.devcontainer/devcontainer.json
+
+  bootkit-skill-cc:
+    type: http
+    url: https://raw.githubusercontent.com/pirakansa/bootkit/main/.agents/skills/conventional-commits-authoring/SKILL.md
+
+  codex-auth-template:
+    type: http
+    url: https://raw.githubusercontent.com/pirakansa/bootkit/main/templates/codex/auth.json
+
+files:
+  - source: bootkit-agents
+    path: AGENTS.md
+    merge: three_way
+    backup: timestamp
+
+  - source: bootkit-devcontainer
+    path: .devcontainer/devcontainer.json
+    merge: three_way
+    backup: timestamp
+
+  - source: bootkit-skill-cc
+    path: .agents/skills/conventional-commits-authoring/SKILL.md
+    merge: overwrite
+    backup: timestamp
+
+profiles:
+  devcontainer:
+    files:
+      - source: codex-auth-template
+        path: /workspaces/.persist/codex/auth.json
+        merge: keep_local
+        backup: none
