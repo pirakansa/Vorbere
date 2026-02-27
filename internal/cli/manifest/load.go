@@ -21,12 +21,7 @@ func LoadTaskConfig(path string) (*TaskConfig, error) {
 	if err := yaml.Unmarshal(b, &cfg); err != nil {
 		return nil, err
 	}
-	if cfg.Version == "" {
-		cfg.Version = "v1"
-	}
-	if cfg.Tasks == nil {
-		cfg.Tasks = map[string]TaskDef{}
-	}
+	normalizeTaskConfig(&cfg)
 	return &cfg, nil
 }
 
@@ -39,30 +34,14 @@ func LoadSyncConfigFromPath(path string) (*SyncConfig, error) {
 	if err := yaml.Unmarshal(b, &cfg); err != nil {
 		return nil, err
 	}
-	if cfg.Version == "" {
-		cfg.Version = "v1"
-	}
-	if cfg.Sources == nil {
-		cfg.Sources = map[string]Source{}
-	}
-	if cfg.Profiles == nil {
-		cfg.Profiles = map[string]Profile{}
-	}
+	normalizeSyncConfig(&cfg)
 	return &cfg, nil
 }
 
 func ResolveSyncConfig(taskCfg *TaskConfig, taskConfigPath string) (*SyncConfig, error) {
 	if taskCfg.Sync.Inline != nil {
 		cfg := taskCfg.Sync.Inline
-		if cfg.Version == "" {
-			cfg.Version = "v1"
-		}
-		if cfg.Sources == nil {
-			cfg.Sources = map[string]Source{}
-		}
-		if cfg.Profiles == nil {
-			cfg.Profiles = map[string]Profile{}
-		}
+		normalizeSyncConfig(cfg)
 		return cfg, nil
 	}
 
@@ -114,15 +93,7 @@ func loadSyncConfigFromURL(rawURL string) (*SyncConfig, error) {
 	if err := yaml.Unmarshal(b, &cfg); err != nil {
 		return nil, err
 	}
-	if cfg.Version == "" {
-		cfg.Version = "v1"
-	}
-	if cfg.Sources == nil {
-		cfg.Sources = map[string]Source{}
-	}
-	if cfg.Profiles == nil {
-		cfg.Profiles = map[string]Profile{}
-	}
+	normalizeSyncConfig(&cfg)
 	return &cfg, nil
 }
 
@@ -185,4 +156,25 @@ func ResolveProfileFiles(cfg *SyncConfig, profile string) ([]FileRule, error) {
 	merged = append(merged, cfg.Files...)
 	merged = append(merged, p.Files...)
 	return merged, nil
+}
+
+func normalizeTaskConfig(cfg *TaskConfig) {
+	if cfg.Version == "" {
+		cfg.Version = "v1"
+	}
+	if cfg.Tasks == nil {
+		cfg.Tasks = map[string]TaskDef{}
+	}
+}
+
+func normalizeSyncConfig(cfg *SyncConfig) {
+	if cfg.Version == "" {
+		cfg.Version = "v1"
+	}
+	if cfg.Sources == nil {
+		cfg.Sources = map[string]Source{}
+	}
+	if cfg.Profiles == nil {
+		cfg.Profiles = map[string]Profile{}
+	}
 }

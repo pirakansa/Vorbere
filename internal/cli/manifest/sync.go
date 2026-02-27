@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -84,7 +83,7 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 
 		mode := chooseMergeMode(rule.Merge, opts.ModeOverride)
 		backup := chooseBackup(rule.Backup, opts.Backup)
-		outcome, applied, err := applyRule(target, src.URL, incoming, mode, backup, lock.Files[target], opts)
+		outcome, applied, err := applyRule(target, incoming, mode, backup, lock.Files[target], opts)
 		if err != nil {
 			if errors.Is(err, ErrSyncConflict) {
 				res.Conflicts = append(res.Conflicts, target)
@@ -124,7 +123,7 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 	return res, nil
 }
 
-func applyRule(targetPath, sourceURL string, incoming []byte, mode, backup string, lockEntry LockEntry, opts SyncOptions) (string, bool, error) {
+func applyRule(targetPath string, incoming []byte, mode, backup string, lockEntry LockEntry, opts SyncOptions) (string, bool, error) {
 	current, err := os.ReadFile(targetPath)
 	exists := err == nil
 	if err != nil && !os.IsNotExist(err) {
@@ -243,9 +242,6 @@ func verifyChecksum(content []byte, checksum string) error {
 	value := strings.TrimSpace(parts[1])
 	if algo != "sha256" {
 		return fmt.Errorf("unsupported checksum algo: %s", algo)
-	}
-	if _, err := strconv.ParseUint("0", 10, 64); err != nil {
-		return err
 	}
 	if shared.SHA256Hex(content) != value {
 		return errors.New("checksum mismatch")
