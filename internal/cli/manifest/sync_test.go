@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/pirakansa/vorbere/internal/cli/shared"
 )
 
 func TestSyncThreeWayConflictAndOverwrite(t *testing.T) {
@@ -100,5 +102,150 @@ func TestSyncKeepLocal(t *testing.T) {
 	}
 	if res.Skipped != 1 {
 		t.Fatalf("expected skipped=1 got %+v", res)
+	}
+}
+
+func TestSyncDryRunDoesNotWriteFileOrLock(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("remote"))
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	lockPath := filepath.Join(temp, LockFileName)
+	cfg := &SyncConfig{
+		Version: "v1",
+		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Files:   []FileRule{{Source: "src", Path: "dryrun.txt"}},
+	}
+
+	res, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: lockPath, DryRun: true})
+	if err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+	if res.Created != 1 {
+		t.Fatalf("expected created=1 got %+v", res)
+	}
+	if _, err := os.Stat(filepath.Join(temp, "dryrun.txt")); !os.IsNotExist(err) {
+		t.Fatalf("expected no file write during dry-run, err=%v", err)
+	}
+	if _, err := os.Stat(lockPath); !os.IsNotExist(err) {
+		t.Fatalf("expected no lock write during dry-run, err=%v", err)
+	}
+}
+
+func TestSyncChecksumValidation(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("content"))
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	cfg := &SyncConfig{
+		Version: "v1",
+		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Files: []FileRule{
+			{
+				Source:   "src",
+				Path:     "checksum.txt",
+				Checksum: "sha256:" + shared.SHA256Hex([]byte("content")),
+			},
+		},
+	}
+
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName)}); err != nil {
+		t.Fatalf("sync with valid checksum failed: %v", err)
+	}
+
+	cfg.Files[0].Path = "checksum-mismatch.txt"
+	cfg.Files[0].Checksum = "sha256:" + shared.SHA256Hex([]byte("different"))
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName)}); err == nil {
+		t.Fatalf("expected checksum mismatch error")
+	}
+}
+
+func TestSyncWritesLockMetadata(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("meta"))
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	target := filepath.Join(temp, "lock.txt")
+	lockPath := filepath.Join(temp, LockFileName)
+	now := time.Date(2026, 2, 27, 15, 0, 0, 0, time.UTC)
+
+	cfg := &SyncConfig{
+		Version: "v1",
+		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Files:   []FileRule{{Source: "src", Path: "lock.txt"}},
+	}
+
+	_, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: lockPath, Now: func() time.Time { return now }})
+	if err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	lock, err := LoadLock(lockPath)
+	if err != nil {
+		t.Fatalf("LoadLock failed: %v", err)
+	}
+	entry, ok := lock.Files[target]
+	if !ok {
+		t.Fatalf("expected lock entry for %s", target)
+	}
+	if entry.SourceURL != server.URL {
+		t.Fatalf("unexpected source_url: %q", entry.SourceURL)
+	}
+	expectedHash := shared.SHA256Hex([]byte("meta"))
+	if entry.AppliedHash != expectedHash || entry.SourceHash != expectedHash {
+		t.Fatalf("unexpected hash entry: %#v", entry)
+	}
+	if entry.UpdatedAt != now.Format(time.RFC3339) {
+		t.Fatalf("unexpected updated_at: %q", entry.UpdatedAt)
+	}
+}
+
+func TestSyncProfileAppliesAdditionalRules(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/base":
+			_, _ = w.Write([]byte("base"))
+		case "/profile":
+			_, _ = w.Write([]byte("profile"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	cfg := &SyncConfig{
+		Version: "v1",
+		Sources: map[string]Source{
+			"base":    {Type: "http", URL: server.URL + "/base"},
+			"profile": {Type: "http", URL: server.URL + "/profile"},
+		},
+		Files: []FileRule{
+			{Source: "base", Path: "base.txt"},
+		},
+		Profiles: map[string]Profile{
+			"devcontainer": {
+				Files: []FileRule{
+					{Source: "profile", Path: "profile.txt"},
+				},
+			},
+		},
+	}
+
+	_, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName), Profile: "devcontainer"})
+	if err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(temp, "base.txt")); err != nil {
+		t.Fatalf("expected base file: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(temp, "profile.txt")); err != nil {
+		t.Fatalf("expected profile file: %v", err)
 	}
 }
