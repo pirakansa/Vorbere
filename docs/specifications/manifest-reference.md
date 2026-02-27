@@ -1,11 +1,14 @@
 # Manifest Reference
 
-This document describes `vorbere.yaml`, `sync.yaml`, and `vorbere.lock` as implemented in the current codebase.
+This document defines the `vorbere.yaml` manifest and `vorbere.lock` behavior.
+
+Current format: `version: 3` (ppkgmgr-compatible shape with `vorbere` extensions).
 
 ## vorbere.yaml
 
 ```yaml
-version: v1
+version: 3
+
 tasks:
   test:
     run: "npm test"
@@ -14,72 +17,65 @@ tasks:
       FOO: bar
     cwd: subdir
     depends_on: [lint]
-sync:
-  ref: sync.yaml
-  inline: {}
+
+repositories:
+  - _comment: bootkit files
+    url: https://raw.githubusercontent.com/pirakansa/bootkit/main/
+    files:
+      - file_name: AGENTS.md
+        out_dir: .
+        digest: <optional hex>
+        rename: AGENTS.md
+        mode: "0644"
+        x_vorbere:
+          merge: three_way
+          backup: timestamp
+      - file_name: templates/codex/auth.json
+        out_dir: /workspaces/.persist/codex
+        rename: auth.json
+        x_vorbere:
+          profile: devcontainer
+          merge: keep_local
+          backup: none
 ```
 
-Fields:
+### Top-level fields
 
-- `version`: optional, defaults to `v1` if omitted
+- `version`: optional, defaults to `3`
 - `tasks`: map of task definitions
+- `repositories`: list of remote repositories to fetch artifacts from
+
+### `tasks` fields
+
 - `tasks.<name>.run`: shell command (optional when `depends_on` exists)
 - `tasks.<name>.desc`: description shown by `tasks list`
 - `tasks.<name>.env`: additional environment variables
 - `tasks.<name>.cwd`: working directory (absolute or relative to config directory)
 - `tasks.<name>.depends_on`: dependency task names
-- `sync.ref`: path or HTTP(S) URL to sync manifest
-- `sync.inline`: inline sync manifest
 
-Resolution order for sync config:
+### `repositories` fields
 
-1. `sync.inline` (highest priority)
-2. `sync.ref`
-3. `sync.yaml` in the same directory as `vorbere.yaml`
-4. empty sync config
+- `repositories[].url`: required base URL
+- `repositories[].headers`: optional HTTP headers applied to all files in the repository
+- `repositories[].files[]`: file definitions
 
-## sync.yaml
+Supported `repositories[].files[]` fields:
 
-```yaml
-version: v1
-sources:
-  mysource:
-    type: http
-    url: https://example.com/file
-    headers:
-      Authorization: Bearer TOKEN
-files:
-  - source: mysource
-    path: .devcontainer/devcontainer.json
-    mode: "0644"
-    merge: three_way
-    backup: timestamp
-    checksum: sha256:<hex>
-profiles:
-  devcontainer:
-    files:
-      - source: mysource
-        path: /workspaces/.persist/example.txt
-        merge: keep_local
-```
+- `file_name` (required): path/name appended to repository base URL
+- `out_dir` (required): destination directory (`$ENV` variables are expanded)
+- `rename` (optional): output filename override
+- `mode` (optional): octal output file mode string (example: `"0755"`)
+- `digest` (optional): SHA-256 hex digest of final output
+- `x_vorbere.merge` (optional): `three_way` (default), `overwrite`, `keep_local`
+- `x_vorbere.backup` (optional): `none` (default), `timestamp`
+- `x_vorbere.profile` (optional): include this file only when `--profile <name>` matches
 
-Fields:
+Currently unsupported in `vorbere` (explicitly rejected when set):
 
-- `version`: optional, defaults to `v1`
-- `sources.<id>.type`: currently only `http` is supported
-- `sources.<id>.url`: required source URL
-- `sources.<id>.headers`: optional HTTP headers
-- `files[]`: base sync rules
-- `profiles.<name>.files[]`: additional rules appended when `--profile <name>` is used
-
-File rule fields:
-
-- `source`: source ID from `sources`
-- `path`: destination path (absolute or relative to config directory)
-- `mode`: currently parsed but not applied in writing logic
-- `merge`: `three_way` (default), `overwrite`, or `keep_local`
-- `backup`: `none` (default) or `timestamp`
-- `checksum`: optional `sha256:<hex>` integrity check
+- `artifact_digest`
+- `encoding`
+- `extract`
+- `symlink`
 
 ## Merge behavior
 

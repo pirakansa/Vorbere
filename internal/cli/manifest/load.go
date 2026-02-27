@@ -3,11 +3,10 @@ package manifest
 import (
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -25,46 +24,11 @@ func LoadTaskConfig(path string) (*TaskConfig, error) {
 	return &cfg, nil
 }
 
-func LoadSyncConfigFromPath(path string) (*SyncConfig, error) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var cfg SyncConfig
-	if err := yaml.Unmarshal(b, &cfg); err != nil {
-		return nil, err
-	}
-	normalizeSyncConfig(&cfg)
-	return &cfg, nil
-}
-
 func ResolveSyncConfig(taskCfg *TaskConfig, taskConfigPath string) (*SyncConfig, error) {
-	if taskCfg.Sync.Inline != nil {
-		cfg := taskCfg.Sync.Inline
-		normalizeSyncConfig(cfg)
-		return cfg, nil
-	}
-
-	baseDir := filepath.Dir(taskConfigPath)
-	if taskCfg.Sync.Ref != "" {
-		if isHTTP(taskCfg.Sync.Ref) {
-			return loadSyncConfigFromURL(taskCfg.Sync.Ref)
-		}
-		path := taskCfg.Sync.Ref
-		if !filepath.IsAbs(path) {
-			path = filepath.Join(baseDir, path)
-		}
-		return LoadSyncConfigFromPath(path)
-	}
-
-	fallback := filepath.Join(baseDir, "sync.yaml")
-	if _, err := os.Stat(fallback); err == nil {
-		return LoadSyncConfigFromPath(fallback)
-	}
 	if err := validateTaskConfig(taskCfg); err != nil {
 		return nil, err
 	}
-	return &SyncConfig{Version: "v1", Sources: map[string]Source{}, Profiles: map[string]Profile{}}, nil
+	return buildSyncConfig(taskCfg)
 }
 
 func validateTaskConfig(cfg *TaskConfig) error {
@@ -76,43 +40,8 @@ func validateTaskConfig(cfg *TaskConfig) error {
 	return nil
 }
 
-func loadSyncConfigFromURL(rawURL string) (*SyncConfig, error) {
-	resp, err := http.Get(rawURL) // #nosec G107
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("sync ref download failed: status=%d", resp.StatusCode)
-	}
-	b, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	var cfg SyncConfig
-	if err := yaml.Unmarshal(b, &cfg); err != nil {
-		return nil, err
-	}
-	normalizeSyncConfig(&cfg)
-	return &cfg, nil
-}
-
-func isHTTP(v string) bool {
-	u, err := url.Parse(v)
-	if err != nil {
-		return false
-	}
-	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
-}
-
 func ValidateSyncConfig(cfg *SyncConfig) error {
 	for id, src := range cfg.Sources {
-		if src.Type == "" {
-			return fmt.Errorf("source %q type is required", id)
-		}
-		if src.Type != "http" {
-			return fmt.Errorf("source %q type %q is not supported", id, src.Type)
-		}
 		if src.URL == "" {
 			return fmt.Errorf("source %q url is required", id)
 		}
@@ -159,22 +88,95 @@ func ResolveProfileFiles(cfg *SyncConfig, profile string) ([]FileRule, error) {
 }
 
 func normalizeTaskConfig(cfg *TaskConfig) {
-	if cfg.Version == "" {
-		cfg.Version = "v1"
+	if cfg.Version == 0 {
+		cfg.Version = 3
 	}
 	if cfg.Tasks == nil {
 		cfg.Tasks = map[string]TaskDef{}
 	}
+	if cfg.Repositories == nil {
+		cfg.Repositories = []Repository{}
+	}
 }
 
-func normalizeSyncConfig(cfg *SyncConfig) {
-	if cfg.Version == "" {
-		cfg.Version = "v1"
+func buildSyncConfig(taskCfg *TaskConfig) (*SyncConfig, error) {
+	cfg := &SyncConfig{
+		Version:  "v3",
+		Sources:  map[string]Source{},
+		Profiles: map[string]Profile{},
 	}
-	if cfg.Sources == nil {
-		cfg.Sources = map[string]Source{}
+
+	for repoIndex, repo := range taskCfg.Repositories {
+		if strings.TrimSpace(repo.URL) == "" {
+			return nil, fmt.Errorf("repositories[%d].url is required", repoIndex)
+		}
+		for fileIndex, file := range repo.Files {
+			if err := validateRepositoryFile(file, repoIndex, fileIndex); err != nil {
+				return nil, err
+			}
+			targetName := file.Rename
+			if strings.TrimSpace(targetName) == "" {
+				targetName = path.Base(file.FileName)
+			}
+			if targetName == "." || targetName == "/" || targetName == "" {
+				return nil, fmt.Errorf("repositories[%d].files[%d] could not determine output filename", repoIndex, fileIndex)
+			}
+			expandedOutDir := os.ExpandEnv(file.OutDir)
+			targetPath := filepath.Join(expandedOutDir, targetName)
+			sourceID := fmt.Sprintf("r%df%d", repoIndex, fileIndex)
+			cfg.Sources[sourceID] = Source{
+				URL:     joinURL(repo.URL, file.FileName),
+				Headers: repo.Headers,
+			}
+			rule := FileRule{
+				Source: sourceID,
+				Path:   targetPath,
+				Mode:   file.Mode,
+				Merge:  file.XVorbere.Merge,
+				Backup: file.XVorbere.Backup,
+			}
+			if strings.TrimSpace(file.Digest) != "" {
+				rule.Checksum = "sha256:" + strings.TrimSpace(strings.ToLower(file.Digest))
+			}
+
+			if strings.TrimSpace(file.XVorbere.Profile) == "" {
+				cfg.Files = append(cfg.Files, rule)
+				continue
+			}
+			profile := file.XVorbere.Profile
+			entry := cfg.Profiles[profile]
+			entry.Files = append(entry.Files, rule)
+			cfg.Profiles[profile] = entry
+		}
 	}
-	if cfg.Profiles == nil {
-		cfg.Profiles = map[string]Profile{}
+
+	return cfg, nil
+}
+
+func validateRepositoryFile(file RepositoryFile, repoIndex, fileIndex int) error {
+	if strings.TrimSpace(file.FileName) == "" {
+		return fmt.Errorf("repositories[%d].files[%d].file_name is required", repoIndex, fileIndex)
 	}
+	if strings.TrimSpace(file.OutDir) == "" {
+		return fmt.Errorf("repositories[%d].files[%d].out_dir is required", repoIndex, fileIndex)
+	}
+	if strings.TrimSpace(file.ArtifactDigest) != "" {
+		return fmt.Errorf("repositories[%d].files[%d].artifact_digest is not supported", repoIndex, fileIndex)
+	}
+	if strings.TrimSpace(file.Encoding) != "" {
+		return fmt.Errorf("repositories[%d].files[%d].encoding is not supported", repoIndex, fileIndex)
+	}
+	if strings.TrimSpace(file.Extract) != "" {
+		return fmt.Errorf("repositories[%d].files[%d].extract is not supported", repoIndex, fileIndex)
+	}
+	if file.Symlink != nil {
+		return fmt.Errorf("repositories[%d].files[%d].symlink is not supported", repoIndex, fileIndex)
+	}
+	return nil
+}
+
+func joinURL(base, fileName string) string {
+	base = strings.TrimSpace(base)
+	fileName = strings.TrimSpace(fileName)
+	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(fileName, "/")
 }

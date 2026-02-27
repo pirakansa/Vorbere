@@ -1,4 +1,4 @@
-version: v1
+version: 3
 
 tasks:
   sync:
@@ -25,5 +25,35 @@ tasks:
     depends_on: [sync, fmt, lint, test, build]
     desc: run full local CI flow
 
-sync:
-  ref: sync.yaml
+repositories:
+  - _comment: bootkit templates
+    url: https://raw.githubusercontent.com/pirakansa/bootkit/main/
+    files:
+      - file_name: AGENTS.md
+        out_dir: .
+        rename: AGENTS.md
+        x_vorbere:
+          merge: three_way
+          backup: timestamp
+
+      - file_name: .devcontainer/devcontainer.json
+        out_dir: .devcontainer
+        rename: devcontainer.json
+        x_vorbere:
+          merge: three_way
+          backup: timestamp
+
+      - file_name: .agents/skills/conventional-commits-authoring/SKILL.md
+        out_dir: .agents/skills/conventional-commits-authoring
+        rename: SKILL.md
+        x_vorbere:
+          merge: overwrite
+          backup: timestamp
+
+      - file_name: templates/codex/auth.json
+        out_dir: /workspaces/.persist/codex
+        rename: auth.json
+        x_vorbere:
+          profile: devcontainer
+          merge: keep_local
+          backup: none

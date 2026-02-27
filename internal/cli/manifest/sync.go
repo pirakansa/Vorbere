@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -83,7 +84,7 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 
 		mode := chooseMergeMode(rule.Merge, opts.ModeOverride)
 		backup := chooseBackup(rule.Backup, opts.Backup)
-		outcome, applied, err := applyRule(target, incoming, mode, backup, lock.Files[target], opts)
+		outcome, applied, err := applyRule(target, incoming, rule.Mode, mode, backup, lock.Files[target], opts)
 		if err != nil {
 			if errors.Is(err, ErrSyncConflict) {
 				res.Conflicts = append(res.Conflicts, target)
@@ -123,7 +124,7 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 	return res, nil
 }
 
-func applyRule(targetPath string, incoming []byte, mode, backup string, lockEntry LockEntry, opts SyncOptions) (string, bool, error) {
+func applyRule(targetPath string, incoming []byte, fileMode, mode, backup string, lockEntry LockEntry, opts SyncOptions) (string, bool, error) {
 	current, err := os.ReadFile(targetPath)
 	exists := err == nil
 	if err != nil && !os.IsNotExist(err) {
@@ -137,15 +138,15 @@ func applyRule(targetPath string, incoming []byte, mode, backup string, lockEntr
 
 	switch mode {
 	case MergeOverwrite:
-		return writeTarget(targetPath, incoming, current, exists, backup, opts)
+		return writeTarget(targetPath, incoming, current, exists, fileMode, backup, opts)
 	case MergeKeepLocal:
 		if exists {
 			return "skipped", false, nil
 		}
-		return writeTarget(targetPath, incoming, nil, false, backup, opts)
+		return writeTarget(targetPath, incoming, nil, false, fileMode, backup, opts)
 	case MergeThreeWay:
 		if !exists {
-			return writeTarget(targetPath, incoming, nil, false, backup, opts)
+			return writeTarget(targetPath, incoming, nil, false, fileMode, backup, opts)
 		}
 		appliedHash := lockEntry.AppliedHash
 		if appliedHash == "" {
@@ -156,7 +157,7 @@ func applyRule(targetPath string, incoming []byte, mode, backup string, lockEntr
 		}
 		currentHash := shared.SHA256Hex(current)
 		if currentHash == appliedHash {
-			return writeTarget(targetPath, incoming, current, true, backup, opts)
+			return writeTarget(targetPath, incoming, current, true, fileMode, backup, opts)
 		}
 		if incomingHash == appliedHash {
 			return "skipped", false, nil
@@ -167,7 +168,7 @@ func applyRule(targetPath string, incoming []byte, mode, backup string, lockEntr
 	}
 }
 
-func writeTarget(path string, incoming, current []byte, existed bool, backup string, opts SyncOptions) (string, bool, error) {
+func writeTarget(path string, incoming, current []byte, existed bool, fileMode, backup string, opts SyncOptions) (string, bool, error) {
 	if opts.DryRun {
 		if existed {
 			return "updated", false, nil
@@ -182,13 +183,28 @@ func writeTarget(path string, incoming, current []byte, existed bool, backup str
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return "", false, err
 	}
-	if err := os.WriteFile(path, incoming, 0o644); err != nil {
+	perm, err := resolveOutputMode(fileMode)
+	if err != nil {
+		return "", false, err
+	}
+	if err := os.WriteFile(path, incoming, perm); err != nil {
 		return "", false, err
 	}
 	if existed {
 		return "updated", true, nil
 	}
 	return "created", true, nil
+}
+
+func resolveOutputMode(v string) (os.FileMode, error) {
+	if strings.TrimSpace(v) == "" {
+		return 0o644, nil
+	}
+	parsed, err := strconv.ParseUint(v, 8, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid file mode %q", v)
+	}
+	return os.FileMode(parsed), nil
 }
 
 func download(src Source) ([]byte, error) {

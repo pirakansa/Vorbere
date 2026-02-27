@@ -8,7 +8,7 @@ This guide shows a practical setup for repositories that want both:
 ## Prerequisites
 
 - `vorbere` is installed in the DevContainer.
-- The repository root contains `vorbere.yaml` and `sync.yaml`.
+- The repository root contains `vorbere.yaml`.
 - A persistent mount exists for personal agent state (example: `/workspaces/.persist`).
 
 ## 1. Start from the example files
@@ -16,12 +16,11 @@ This guide shows a practical setup for repositories that want both:
 Copy and adapt:
 
 - `docs/examples/bootkit-devcontainer/vorbere.yaml`
-- `docs/examples/bootkit-devcontainer/sync.yaml`
 
 Recommended minimum edits:
 
 - Replace task commands with your stack (`npm`, `cargo`, `go`, `make`, etc.).
-- Replace bootkit URLs with your real paths.
+- Replace repository URLs and file entries with your real paths.
 - Update persistent mount target paths for your environment.
 
 ## 2. Keep task names stable across repositories

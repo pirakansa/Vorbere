@@ -12,17 +12,12 @@
 
 ### `vorbere init`
 
-Create template files.
-
-Flags:
-
-- `--with-sync-ref <path-or-url>`: set `sync.ref` in generated `vorbere.yaml`
+Create `vorbere.yaml` template.
 
 Behavior:
 
 - Fails if target files already exist.
-- Without `--with-sync-ref`, creates both `vorbere.yaml` and `sync.yaml`.
-- With `--with-sync-ref`, creates only `vorbere.yaml`.
+- Creates only `vorbere.yaml` (single-file manifest).
 
 ### `vorbere tasks list`
 
@@ -40,7 +35,7 @@ Behavior:
 
 ### `vorbere sync`
 
-Sync files from sync manifest sources.
+Sync files from `repositories` in `vorbere.yaml`.
 
 Flags:
 

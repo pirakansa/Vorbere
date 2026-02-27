@@ -2,9 +2,9 @@ package manifest
 
 // TaskConfig is the repository-level task configuration in vorbere.yaml.
 type TaskConfig struct {
-	Version string             `yaml:"version"`
-	Tasks   map[string]TaskDef `yaml:"tasks"`
-	Sync    SyncRef            `yaml:"sync"`
+	Version      int                `yaml:"version"`
+	Tasks        map[string]TaskDef `yaml:"tasks"`
+	Repositories []Repository       `yaml:"repositories"`
 }
 
 // TaskDef defines one runnable task.
@@ -16,13 +16,42 @@ type TaskDef struct {
 	DependsOn []string          `yaml:"depends_on"`
 }
 
-// SyncRef points to sync configuration inline or by reference.
-type SyncRef struct {
-	Ref    string      `yaml:"ref"`
-	Inline *SyncConfig `yaml:"inline"`
+// Repository groups downloadable file entries under one base URL.
+type Repository struct {
+	Comment string            `yaml:"_comment"`
+	URL     string            `yaml:"url"`
+	Headers map[string]string `yaml:"headers"`
+	Files   []RepositoryFile  `yaml:"files"`
 }
 
-// SyncConfig is the sync manifest.
+// RepositoryFile defines one fetch-and-place operation.
+type RepositoryFile struct {
+	FileName       string       `yaml:"file_name"`
+	Digest         string       `yaml:"digest"`
+	ArtifactDigest string       `yaml:"artifact_digest"`
+	Encoding       string       `yaml:"encoding"`
+	Extract        string       `yaml:"extract"`
+	OutDir         string       `yaml:"out_dir"`
+	Rename         string       `yaml:"rename"`
+	Mode           string       `yaml:"mode"`
+	Symlink        *SymlinkSpec `yaml:"symlink"`
+	XVorbere       FileBehavior `yaml:"x_vorbere"`
+}
+
+// SymlinkSpec is kept for schema compatibility; currently unsupported.
+type SymlinkSpec struct {
+	Link   string `yaml:"link"`
+	Target string `yaml:"target"`
+}
+
+// FileBehavior contains vorbere-specific sync behavior extensions.
+type FileBehavior struct {
+	Merge   string `yaml:"merge"`
+	Backup  string `yaml:"backup"`
+	Profile string `yaml:"profile"`
+}
+
+// SyncConfig is the normalized internal sync manifest.
 type SyncConfig struct {
 	Version  string             `yaml:"version"`
 	Sources  map[string]Source  `yaml:"sources"`
@@ -37,7 +66,6 @@ type Profile struct {
 
 // Source defines downloadable resource metadata.
 type Source struct {
-	Type    string            `yaml:"type"`
 	URL     string            `yaml:"url"`
 	Headers map[string]string `yaml:"headers"`
 }

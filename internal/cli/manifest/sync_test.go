@@ -23,9 +23,9 @@ func TestSyncThreeWayConflictAndOverwrite(t *testing.T) {
 	target := "managed/file.txt"
 
 	cfg := &SyncConfig{
-		Version: "v1",
+		Version: "v3",
 		Sources: map[string]Source{
-			"src": {Type: "http", URL: server.URL},
+			"src": {URL: server.URL},
 		},
 		Files: []FileRule{{Source: "src", Path: target}},
 	}
@@ -92,8 +92,8 @@ func TestSyncKeepLocal(t *testing.T) {
 	}
 
 	cfg := &SyncConfig{
-		Version: "v1",
-		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Version: "v3",
+		Sources: map[string]Source{"src": {URL: server.URL}},
 		Files:   []FileRule{{Source: "src", Path: "local.txt", Merge: MergeKeepLocal}},
 	}
 	res, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName)})
@@ -114,8 +114,8 @@ func TestSyncDryRunDoesNotWriteFileOrLock(t *testing.T) {
 	temp := t.TempDir()
 	lockPath := filepath.Join(temp, LockFileName)
 	cfg := &SyncConfig{
-		Version: "v1",
-		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Version: "v3",
+		Sources: map[string]Source{"src": {URL: server.URL}},
 		Files:   []FileRule{{Source: "src", Path: "dryrun.txt"}},
 	}
 
@@ -142,8 +142,8 @@ func TestSyncChecksumValidation(t *testing.T) {
 
 	temp := t.TempDir()
 	cfg := &SyncConfig{
-		Version: "v1",
-		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Version: "v3",
+		Sources: map[string]Source{"src": {URL: server.URL}},
 		Files: []FileRule{
 			{
 				Source:   "src",
@@ -176,8 +176,8 @@ func TestSyncWritesLockMetadata(t *testing.T) {
 	now := time.Date(2026, 2, 27, 15, 0, 0, 0, time.UTC)
 
 	cfg := &SyncConfig{
-		Version: "v1",
-		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Version: "v3",
+		Sources: map[string]Source{"src": {URL: server.URL}},
 		Files:   []FileRule{{Source: "src", Path: "lock.txt"}},
 	}
 
@@ -221,10 +221,10 @@ func TestSyncProfileAppliesAdditionalRules(t *testing.T) {
 
 	temp := t.TempDir()
 	cfg := &SyncConfig{
-		Version: "v1",
+		Version: "v3",
 		Sources: map[string]Source{
-			"base":    {Type: "http", URL: server.URL + "/base"},
-			"profile": {Type: "http", URL: server.URL + "/profile"},
+			"base":    {URL: server.URL + "/base"},
+			"profile": {URL: server.URL + "/profile"},
 		},
 		Files: []FileRule{
 			{Source: "base", Path: "base.txt"},
@@ -258,8 +258,8 @@ func TestSyncReturnsErrorForUnknownProfile(t *testing.T) {
 
 	temp := t.TempDir()
 	cfg := &SyncConfig{
-		Version: "v1",
-		Sources: map[string]Source{"base": {Type: "http", URL: server.URL}},
+		Version: "v3",
+		Sources: map[string]Source{"base": {URL: server.URL}},
 		Files:   []FileRule{{Source: "base", Path: "base.txt"}},
 	}
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName), Profile: "missing"}); err == nil {
@@ -275,8 +275,8 @@ func TestSyncReturnsErrorForHTTPStatusFailure(t *testing.T) {
 
 	temp := t.TempDir()
 	cfg := &SyncConfig{
-		Version: "v1",
-		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Version: "v3",
+		Sources: map[string]Source{"src": {URL: server.URL}},
 		Files:   []FileRule{{Source: "src", Path: "fail.txt"}},
 	}
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName)}); err == nil {
@@ -292,8 +292,8 @@ func TestSyncReturnsErrorForInvalidChecksumFormat(t *testing.T) {
 
 	temp := t.TempDir()
 	cfg := &SyncConfig{
-		Version: "v1",
-		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Version: "v3",
+		Sources: map[string]Source{"src": {URL: server.URL}},
 		Files:   []FileRule{{Source: "src", Path: "bad-checksum.txt", Checksum: "not-valid"}},
 	}
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName)}); err == nil {
@@ -309,8 +309,8 @@ func TestSyncReturnsErrorForUnsupportedChecksumAlgorithm(t *testing.T) {
 
 	temp := t.TempDir()
 	cfg := &SyncConfig{
-		Version: "v1",
-		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Version: "v3",
+		Sources: map[string]Source{"src": {URL: server.URL}},
 		Files:   []FileRule{{Source: "src", Path: "bad-checksum-algo.txt", Checksum: "sha1:1234"}},
 	}
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName)}); err == nil {
@@ -330,8 +330,8 @@ func TestSyncReturnsErrorForCorruptLockFile(t *testing.T) {
 		t.Fatalf("write corrupt lock file: %v", err)
 	}
 	cfg := &SyncConfig{
-		Version: "v1",
-		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Version: "v3",
+		Sources: map[string]Source{"src": {URL: server.URL}},
 		Files:   []FileRule{{Source: "src", Path: "target.txt"}},
 	}
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: lockPath}); err == nil {

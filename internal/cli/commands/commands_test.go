@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/pirakansa/vorbere/internal/cli/manifest"
@@ -43,9 +44,6 @@ func TestInitCommandCreatesFilesAndFailsOnSecondRun(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(temp, "vorbere.yaml")); err != nil {
 		t.Fatalf("vorbere.yaml missing: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(temp, "sync.yaml")); err != nil {
-		t.Fatalf("sync.yaml missing: %v", err)
-	}
 
 	cmd = newInitCmd()
 	cmd.SetArgs(nil)
@@ -54,7 +52,7 @@ func TestInitCommandCreatesFilesAndFailsOnSecondRun(t *testing.T) {
 	}
 }
 
-func TestInitWithSyncRefCreatesOnlyTaskYAML(t *testing.T) {
+func TestInitTemplateContainsRepositories(t *testing.T) {
 	temp := t.TempDir()
 	oldwd, err := os.Getwd()
 	if err != nil {
@@ -66,23 +64,24 @@ func TestInitWithSyncRefCreatesOnlyTaskYAML(t *testing.T) {
 	}
 
 	cmd := newInitCmd()
-	cmd.SetArgs([]string{"--with-sync-ref", "https://example.com/sync.yaml"})
+	cmd.SetArgs(nil)
 	if err := cmd.Execute(); err != nil {
-		t.Fatalf("init with sync ref failed: %v", err)
+		t.Fatalf("init failed: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(temp, "vorbere.yaml")); err != nil {
+	b, err := os.ReadFile(filepath.Join(temp, "vorbere.yaml"))
+	if err != nil {
 		t.Fatalf("vorbere.yaml missing: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(temp, "sync.yaml")); !os.IsNotExist(err) {
-		t.Fatalf("sync.yaml should not be created when --with-sync-ref is set, err=%v", err)
+	if !containsAll(string(b), []string{"version: 3", "repositories:", "file_name:"}) {
+		t.Fatalf("unexpected template content:\n%s", string(b))
 	}
 }
 
 func TestRunCommandReturnsDefinedExitCodes(t *testing.T) {
 	temp := t.TempDir()
 	configPath := filepath.Join(temp, "vorbere.yaml")
-	cfg := `version: v1
+	cfg := `version: 3
 tasks:
   ok:
     run: "echo ok"
@@ -139,17 +138,13 @@ func TestSyncCommandReturnsSyncFailedForInvalidMode(t *testing.T) {
 	}))
 	defer server.Close()
 
-	taskBody := `version: v1
-sync:
-  inline:
-    version: v1
-    sources:
-      src:
-        type: http
-        url: ` + server.URL + `
+	taskBody := `version: 3
+repositories:
+  - url: ` + server.URL + `
     files:
-      - source: src
-        path: a.txt
+      - file_name: "/"
+        out_dir: .
+        rename: a.txt
 `
 	taskPath := filepath.Join(temp, "vorbere.yaml")
 	if err := os.WriteFile(taskPath, []byte(taskBody), 0o644); err != nil {
@@ -165,4 +160,13 @@ sync:
 	if !errors.As(err, &exitErr) || exitErr.code != shared.ExitSyncFailed {
 		t.Fatalf("expected ExitSyncFailed, err=%v", err)
 	}
+}
+
+func containsAll(v string, items []string) bool {
+	for _, item := range items {
+		if !strings.Contains(v, item) {
+			return false
+		}
+	}
+	return true
 }
