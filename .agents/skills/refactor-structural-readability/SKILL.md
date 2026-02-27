@@ -11,7 +11,7 @@ Improve readability and maintainability while preserving behavior.
 ## Inputs
 - Target files/packages
 - Current constraints (public API stability, compatibility, coding style)
-- Validation commands (`make test`, `make lint`, `make build`)
+- Validation commands (`vorbere run test`, `vorbere run lint`, `vorbere run build`)
 
 ## Outputs
 - Smaller responsibility-focused files/functions
@@ -54,7 +54,7 @@ Improve readability and maintainability while preserving behavior.
 - Duplicated decision logic is consolidated.
 - Naming is consistent and self-explanatory.
 - Public API surface is minimal and intentional.
-- `make test && make lint && make build` succeeds.
+- `vorbere run test && vorbere run lint && vorbere run build` succeeds.
 
 ## Quick Checklist
 - [ ] Responsibility split applied

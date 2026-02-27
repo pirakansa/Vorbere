@@ -17,7 +17,7 @@ Implement approved specifications accurately, with clear traceability from spec 
 - Approved specification document(s)
 - Acceptance criteria and constraints
 - Target codebase and existing tests
-- Validation commands (`make test`, `make lint`, `make build`)
+- Validation commands (`vorbere run test`, `vorbere run lint`, `vorbere run build`)
 
 ## Outputs
 - Minimal code changes implementing required behavior
@@ -60,7 +60,7 @@ Implement approved specifications accurately, with clear traceability from spec 
 - All in-scope requirements are implemented.
 - Acceptance criteria are covered by tests.
 - Compatibility/constraint requirements are respected.
-- `make test && make lint && make build` succeeds.
+- `vorbere run test && vorbere run lint && vorbere run build` succeeds.
 - Reviewers can trace each behavior to spec and tests.
 - No unresolved drift remains between implementation and the approved specification.
 

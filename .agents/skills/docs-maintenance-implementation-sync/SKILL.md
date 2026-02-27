@@ -26,7 +26,7 @@ Keep documentation easy to navigate and accurate against the current implementat
 - Change scope (feature/fix/refactor)
 - Affected code paths/files
 - Existing docs (`README.md`, `docs/*.md`)
-- Validation commands (`make test`, `make lint`, `make build`)
+- Validation commands (`vorbere run test`, `vorbere run lint`, `vorbere run build`)
 
 ## Outputs
 - Concise top-level README focused on onboarding
@@ -70,7 +70,7 @@ Keep documentation easy to navigate and accurate against the current implementat
 - Detailed behavior/spec lives in `docs/` with clear links.
 - No stale links or references to removed filenames.
 - Documented fields/flags/flows match implementation and tests.
-- `make test && make lint && make build` succeeds when behavior changed.
+- `vorbere run test && vorbere run lint && vorbere run build` succeeds when behavior changed.
 
 ## Quick Checklist
 - [ ] README kept minimal
