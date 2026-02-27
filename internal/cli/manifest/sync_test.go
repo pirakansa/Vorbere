@@ -249,3 +249,92 @@ func TestSyncProfileAppliesAdditionalRules(t *testing.T) {
 		t.Fatalf("expected profile file: %v", err)
 	}
 }
+
+func TestSyncReturnsErrorForUnknownProfile(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("base"))
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	cfg := &SyncConfig{
+		Version: "v1",
+		Sources: map[string]Source{"base": {Type: "http", URL: server.URL}},
+		Files:   []FileRule{{Source: "base", Path: "base.txt"}},
+	}
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName), Profile: "missing"}); err == nil {
+		t.Fatalf("expected error for unknown profile")
+	}
+}
+
+func TestSyncReturnsErrorForHTTPStatusFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "boom", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	cfg := &SyncConfig{
+		Version: "v1",
+		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Files:   []FileRule{{Source: "src", Path: "fail.txt"}},
+	}
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName)}); err == nil {
+		t.Fatalf("expected HTTP status failure")
+	}
+}
+
+func TestSyncReturnsErrorForInvalidChecksumFormat(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("content"))
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	cfg := &SyncConfig{
+		Version: "v1",
+		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Files:   []FileRule{{Source: "src", Path: "bad-checksum.txt", Checksum: "not-valid"}},
+	}
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName)}); err == nil {
+		t.Fatalf("expected invalid checksum format error")
+	}
+}
+
+func TestSyncReturnsErrorForUnsupportedChecksumAlgorithm(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("content"))
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	cfg := &SyncConfig{
+		Version: "v1",
+		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Files:   []FileRule{{Source: "src", Path: "bad-checksum-algo.txt", Checksum: "sha1:1234"}},
+	}
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName)}); err == nil {
+		t.Fatalf("expected unsupported checksum algorithm error")
+	}
+}
+
+func TestSyncReturnsErrorForCorruptLockFile(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("content"))
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	lockPath := filepath.Join(temp, LockFileName)
+	if err := os.WriteFile(lockPath, []byte(":\n:"), 0o644); err != nil {
+		t.Fatalf("write corrupt lock file: %v", err)
+	}
+	cfg := &SyncConfig{
+		Version: "v1",
+		Sources: map[string]Source{"src": {Type: "http", URL: server.URL}},
+		Files:   []FileRule{{Source: "src", Path: "target.txt"}},
+	}
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: lockPath}); err == nil {
+		t.Fatalf("expected lock parse error")
+	}
+}

@@ -117,3 +117,29 @@ func TestResolveProfileFilesAppendsProfileEntries(t *testing.T) {
 		t.Fatalf("unexpected file order/content: %#v", files)
 	}
 }
+
+func TestValidateSyncConfigRejectsUnsupportedSourceType(t *testing.T) {
+	cfg := &SyncConfig{
+		Version: "v1",
+		Sources: map[string]Source{
+			"s1": {Type: "git", URL: "https://example.com/repo.git"},
+		},
+		Files: []FileRule{{Source: "s1", Path: "a.txt"}},
+	}
+	if err := ValidateSyncConfig(cfg); err == nil {
+		t.Fatalf("expected unsupported source type error")
+	}
+}
+
+func TestResolveSyncConfigRejectsTaskWithoutRunOrDependsOn(t *testing.T) {
+	temp := t.TempDir()
+	cfg := &TaskConfig{
+		Version: "v1",
+		Tasks: map[string]TaskDef{
+			"broken": {},
+		},
+	}
+	if _, err := ResolveSyncConfig(cfg, filepath.Join(temp, "task.yaml")); err == nil {
+		t.Fatalf("expected validation error for task without run and depends_on")
+	}
+}

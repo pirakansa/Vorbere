@@ -79,3 +79,25 @@ func TestRunTaskDetectsDependencyCycle(t *testing.T) {
 		t.Fatalf("expected dependency cycle error")
 	}
 }
+
+func TestRunTaskAppendsArgsToCommand(t *testing.T) {
+	temp := t.TempDir()
+	marker := filepath.Join(temp, "args.txt")
+	cfg := &manifest.TaskConfig{
+		Version: "v1",
+		Tasks: map[string]manifest.TaskDef{
+			"args": {Run: `echo > args.txt`},
+		},
+	}
+
+	if err := RunTask(cfg, "args", temp, []string{"hello", "world"}); err != nil {
+		t.Fatalf("RunTask failed: %v", err)
+	}
+	b, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatalf("read marker: %v", err)
+	}
+	if got := string(b); got != "hello world\n" {
+		t.Fatalf("unexpected args output: %q", got)
+	}
+}

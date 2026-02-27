@@ -2,6 +2,8 @@ package commands
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -112,5 +114,55 @@ tasks:
 	}
 	if !errors.As(err, &exitErr) || exitErr.code != shared.ExitTaskFailed {
 		t.Fatalf("expected ExitTaskFailed, err=%v", err)
+	}
+}
+
+func TestRunCommandReturnsConfigErrorWhenTaskConfigMissing(t *testing.T) {
+	ctx := &appContext{configPath: filepath.Join(t.TempDir(), "missing-task.yaml")}
+
+	cmd := newRunCmd(ctx)
+	cmd.SetArgs([]string{"test"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected config error")
+	}
+	var exitErr *exitCodeError
+	if !errors.As(err, &exitErr) || exitErr.code != shared.ExitConfigError {
+		t.Fatalf("expected ExitConfigError, err=%v", err)
+	}
+}
+
+func TestSyncCommandReturnsSyncFailedForInvalidMode(t *testing.T) {
+	temp := t.TempDir()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("content"))
+	}))
+	defer server.Close()
+
+	taskBody := `version: v1
+sync:
+  inline:
+    version: v1
+    sources:
+      src:
+        type: http
+        url: ` + server.URL + `
+    files:
+      - source: src
+        path: a.txt
+`
+	taskPath := filepath.Join(temp, "task.yaml")
+	if err := os.WriteFile(taskPath, []byte(taskBody), 0o644); err != nil {
+		t.Fatalf("write task config: %v", err)
+	}
+
+	ctx := &appContext{configPath: taskPath}
+	err := runSyncWithOptions(ctx, syncCommandOptions{mode: "invalid-mode"})
+	if err == nil {
+		t.Fatalf("expected sync failure")
+	}
+	var exitErr *exitCodeError
+	if !errors.As(err, &exitErr) || exitErr.code != shared.ExitSyncFailed {
+		t.Fatalf("expected ExitSyncFailed, err=%v", err)
 	}
 }
