@@ -1,5 +1,5 @@
 # This workflow builds and releases the tool on manual dispatch.
-# It reads VERSION from Makefile and creates the vX.Y.Z tag automatically.
+# It reads VERSION and creates the vX.Y.Z tag automatically.
 
 name: Release
 
@@ -23,13 +23,13 @@ jobs:
       with:
         go-version: '^1.25.0'
 
-    - name: Resolve version from Makefile
+    - name: Resolve version
       id: version
       shell: bash
       run: |
-        RAW_VERSION=$(sed -nE 's/^VERSION[[:space:]]*:=[[:space:]]*([0-9A-Za-z._-]+)$/\1/p' Makefile | head -n1)
+        RAW_VERSION="$(cat VERSION)"
         if [ -z "$RAW_VERSION" ]; then
-          echo "failed to resolve VERSION from Makefile" >&2
+          echo "failed to resolve VERSION" >&2
           exit 1
         fi
 
@@ -52,13 +52,13 @@ jobs:
         git push origin "$TAG"
 
     - name: Run tests
-      run: make test
+      run: go run ./cmd/vorbere --config task.yaml run test
 
     - name: Build release binaries
-      run: make release-build
+      run: go run ./cmd/vorbere --config task.yaml run release-build
 
     - name: Create release archives
-      run: make release-archives
+      run: go run ./cmd/vorbere --config task.yaml run release-archives
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
@@ -68,8 +68,6 @@ jobs:
           vorbere_linux-amd64.tar.gz
           vorbere_linux-arm.tar.gz
           vorbere_linux-arm64.tar.gz
-          vorbere_darwin-amd64.tar.gz
-          vorbere_darwin-arm64.tar.gz
           vorbere_win-amd64.tar.gz
         generate_release_notes: true
         draft: false

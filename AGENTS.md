@@ -28,16 +28,16 @@ Rule of thumb:
 
 * Confirm you have write permission under `go env GOPATH` and that `go install` works.
 * On the first run, execute `go mod tidy` at the project root to make sure dependencies are intact.
-* Task runner: `Makefile` (CI uses the `make` targets described later).
+* Task runner: `task.yaml` via `vorbere run <task>` (CI uses the tasks described later).
 
 ---
 
 ## Build & Validate
 
-* Build: `make build`
-* Test: `make test`
-* Lint: `make lint`
-* Cleanup: remove build artifacts (such as `./bin/`) with `rm -rf ./bin/` (equivalent to `make clean`).
+* Build: `vorbere run build`
+* Test: `vorbere run test`
+* Lint: `vorbere run lint`
+* Cleanup: remove build artifacts (such as `./bin/`) with `rm -rf ./bin/` (equivalent to `vorbere run clean`).
 * For CLI usage and command examples, see the Usage section in README.md.
 
 ---
@@ -53,7 +53,7 @@ We follow the **Standard Go Project Layout**.
 ├─ pkg/                   # Reusable public logic
 ├─ test/                  # Test fixtures
 ├─ bin/                   # Build artifacts (generated; not tracked by Git)
-├─ Makefile               # Build / test / release tasks
+├─ task.yaml              # Task definitions for vorbere
 └─ docs/                  # Documentation
 ```
 
@@ -72,7 +72,7 @@ We follow the **Standard Go Project Layout**.
 ### Agent-Specific Rules
 
 * Place new files according to the directory guidelines above; avoid introducing unnecessary top-level directories.
-* When modifying existing functions, add or update unit tests and confirm `make test` passes.
+* When modifying existing functions, add or update unit tests and confirm `vorbere run test` passes.
 * When writing files or accessing external resources, use temporary directories so existing test data is not overwritten.
 
 
@@ -80,8 +80,8 @@ We follow the **Standard Go Project Layout**.
 
 ## Coding Standards
 
-* Always run `make staticcheck` so the code remains `staticcheck`-formatted.
-* Run `make lint` for static checks and ensure there are no warnings (CI requirement).
+* Always run `vorbere run staticcheck` so the code remains `staticcheck`-formatted.
+* Run `vorbere run lint` for static checks and ensure there are no warnings (CI requirement).
 * Handle errors by returning `error`; do not silently discard them with `fmt.Println`. Prefer `fmt.Fprintf(os.Stderr, ...)` for user-facing messages.
 * Package names must be lowercase words (no snake_case). Exported identifiers use UpperCamelCase.
 * Extract magic numbers and hard-coded URLs into constants with meaningful names within the module.
@@ -91,15 +91,15 @@ We follow the **Standard Go Project Layout**.
 
 ## Testing & Verification
 
-* Unit tests: `make test`
+* Unit tests: `vorbere run test`
 * For additional file or network operations, use temp directories or `httptest` to avoid external dependencies.
 * When command behavior changes, keep usage examples in `README.md` and fixtures under `test` consistent.
 
 ### Static Analysis / Lint / Vulnerability Scanning
 
-* Static analysis: `make staticcheck`
-* Code quality: `make vet`
-* Vulnerability scanning: `make govulncheck`
+* Static analysis: `vorbere run staticcheck`
+* Code quality: `vorbere run vet`
+* Vulnerability scanning: `vorbere run govulncheck`
 
 ---
 
@@ -107,11 +107,11 @@ We follow the **Standard Go Project Layout**.
 
 GitHub Actions (`.github/workflows/go.yml`) runs the following:
 
-* `make lint`
-* `make test`
-* `make build`
+* `vorbere run lint`
+* `vorbere run test`
+* `vorbere run build`
 
-Confirm `make lint` / `make test` / `make build` succeed locally before opening a PR. If they fail, format and validate locally, then rerun.
+Confirm `vorbere run lint` / `vorbere run test` / `vorbere run build` succeed locally before opening a PR. If they fail, format and validate locally, then rerun.
 
 ---
 
@@ -128,7 +128,7 @@ Confirm `make lint` / `make test` / `make build` succeed locally before opening 
 
 * If multiple `AGENTS.md` files exist, reference the one closest to your working directory (this repository only has the top-level file).
 * When instructions conflict, prioritize explicit user prompts and clarify any uncertainties.
-* Before and after your work, ensure `make lint`, `make test`, and `make build` all succeed; report the cause and fix if any of them fail.
+* Before and after your work, ensure `vorbere run lint`, `vorbere run test`, and `vorbere run build` all succeed; report the cause and fix if any of them fail.
 
 
 ---
@@ -192,14 +192,14 @@ For structured authoring (template, checklist), use the skill: `conventional-com
 * Add dependencies with `go get <module>@<version>` and keep `go.mod` / `go.sum` in sync.
 * Remove unused dependencies with `go mod tidy`.
 * For dependency updates, state the target module and reason in the PR body.
-* Check external dependencies with `make govulncheck` and report as needed.
+* Check external dependencies with `vorbere run govulncheck` and report as needed.
 
 ---
 
 ## Release Process
 
 * Follow **SemVer** for versioning.
-* Tag new releases with `git tag vX.Y.Z` and verify `make release` outputs.
+* Tag new releases with `git tag vX.Y.Z` and verify `vorbere run release` outputs.
 * Update CHANGELOG.md and reflect the changes in the release notes (include generators in the PR if they were used).
 
 ### CHANGELOG.md Policy
@@ -235,6 +235,6 @@ For structured authoring (template, checklist), use the skill: `pr-description-a
 
 ## Checklist
 
-* [ ] `make lint`
-* [ ] `make test`
-* [ ] `make build`
+* [ ] `vorbere run lint`
+* [ ] `vorbere run test`
+* [ ] `vorbere run build`
