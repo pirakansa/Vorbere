@@ -57,6 +57,18 @@ func mapExitCode(err error) int {
 }
 
 func loadTaskAndRoot(configPath string) (*manifest.TaskConfig, string, error) {
+	if manifest.IsRemoteConfigLocation(configPath) {
+		taskCfg, err := manifest.LoadTaskConfig(configPath)
+		if err != nil {
+			return nil, "", newExitCodeError(shared.ExitConfigError, err)
+		}
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, "", err
+		}
+		return taskCfg, cwd, nil
+	}
+
 	abs, err := filepath.Abs(configPath)
 	if err != nil {
 		return nil, "", err

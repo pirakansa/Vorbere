@@ -2,6 +2,9 @@ package manifest
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -13,7 +16,7 @@ import (
 const manifestVersion = 3
 
 func LoadTaskConfig(path string) (*TaskConfig, error) {
-	b, err := os.ReadFile(path)
+	b, err := readConfig(path)
 	if err != nil {
 		return nil, err
 	}
@@ -23,6 +26,37 @@ func LoadTaskConfig(path string) (*TaskConfig, error) {
 	}
 	normalizeTaskConfig(&cfg)
 	return &cfg, nil
+}
+
+func IsRemoteConfigLocation(value string) bool {
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	if err != nil {
+		return false
+	}
+	return parsed.Scheme == "http" || parsed.Scheme == "https"
+}
+
+func readConfig(path string) ([]byte, error) {
+	if IsRemoteConfigLocation(path) {
+		return readRemoteConfig(path)
+	}
+	return os.ReadFile(path)
+}
+
+func readRemoteConfig(location string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, location, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("load config failed: %s status=%d", location, resp.StatusCode)
+	}
+	return io.ReadAll(resp.Body)
 }
 
 func ResolveSyncConfig(taskCfg *TaskConfig, taskConfigPath string) (*SyncConfig, error) {

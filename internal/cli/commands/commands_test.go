@@ -131,6 +131,34 @@ func TestRunCommandReturnsConfigErrorWhenTaskConfigMissing(t *testing.T) {
 	}
 }
 
+func TestLoadTaskAndRootUsesCWDForRemoteConfig(t *testing.T) {
+	temp := t.TempDir()
+	oldwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd failed: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldwd) }()
+	if err := os.Chdir(temp); err != nil {
+		t.Fatalf("Chdir failed: %v", err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("version: 3\ntasks:\n  test:\n    run: \"echo ok\"\n"))
+	}))
+	defer server.Close()
+
+	taskCfg, rootDir, err := loadTaskAndRoot(server.URL)
+	if err != nil {
+		t.Fatalf("loadTaskAndRoot returned error: %v", err)
+	}
+	if taskCfg.Tasks["test"].Run == "" {
+		t.Fatalf("expected task to be loaded from remote config")
+	}
+	if rootDir != temp {
+		t.Fatalf("expected rootDir=%s, got=%s", temp, rootDir)
+	}
+}
+
 func TestSyncCommandReturnsSyncFailedForInvalidMode(t *testing.T) {
 	temp := t.TempDir()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
