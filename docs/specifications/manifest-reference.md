@@ -27,16 +27,9 @@ repositories:
         digest: <optional hex>
         rename: AGENTS.md
         mode: "0644"
-        x_vorbere:
-          merge: three_way
-          backup: timestamp
       - file_name: templates/codex/auth.json
         out_dir: /workspaces/.persist/codex
         rename: auth.json
-        x_vorbere:
-          profile: devcontainer
-          merge: keep_local
-          backup: none
 ```
 
 ### Top-level fields
@@ -65,10 +58,7 @@ Supported `repositories[].files[]` fields:
 - `out_dir` (required): destination directory (`$ENV` variables are expanded)
 - `rename` (optional): output filename override
 - `mode` (optional): octal output file mode string (example: `"0755"`)
-- `digest` (optional): SHA-256 hex digest of final output
-- `x_vorbere.merge` (optional): `three_way` (default), `overwrite`, `keep_local`
-- `x_vorbere.backup` (optional): `none` (default), `timestamp`
-- `x_vorbere.profile` (optional): include this file only when `--profile <name>` matches
+- `digest` (optional): BLAKE3 hex digest of final output
 
 Currently unsupported in `vorbere` (explicitly rejected when set):
 
@@ -79,15 +69,10 @@ Currently unsupported in `vorbere` (explicitly rejected when set):
 
 ## Merge behavior
 
-- `three_way`:
-  - create file if missing
-  - update when local hash equals last applied hash
-  - conflict if local changed and incoming changed
-  - skip when incoming equals last applied hash
-- `overwrite`:
-  - always write incoming content
-- `keep_local`:
-  - keep existing local file, create only when missing
+Default behavior is overwrite, matching ppkgmgr-style update flow.
+
+- Writes incoming content to target paths.
+- `--mode` can still override runtime behavior (`three_way|overwrite|keep_local`) for vorbere-specific operations.
 
 ## Backup behavior
 

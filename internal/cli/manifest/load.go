@@ -1,7 +1,6 @@
 package manifest
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -57,34 +56,7 @@ func ValidateSyncConfig(cfg *SyncConfig) error {
 			return fmt.Errorf("files[%d].path is required", i)
 		}
 	}
-	for profileName, profile := range cfg.Profiles {
-		for i, rule := range profile.Files {
-			if rule.Source == "" {
-				return fmt.Errorf("profiles.%s.files[%d].source is required", profileName, i)
-			}
-			if _, ok := cfg.Sources[rule.Source]; !ok {
-				return fmt.Errorf("profiles.%s.files[%d].source %q not found in sources", profileName, i, rule.Source)
-			}
-			if rule.Path == "" {
-				return fmt.Errorf("profiles.%s.files[%d].path is required", profileName, i)
-			}
-		}
-	}
 	return nil
-}
-
-func ResolveProfileFiles(cfg *SyncConfig, profile string) ([]FileRule, error) {
-	if profile == "" {
-		return cfg.Files, nil
-	}
-	p, ok := cfg.Profiles[profile]
-	if !ok {
-		return nil, errors.New("profile not found")
-	}
-	merged := make([]FileRule, 0, len(cfg.Files)+len(p.Files))
-	merged = append(merged, cfg.Files...)
-	merged = append(merged, p.Files...)
-	return merged, nil
 }
 
 func normalizeTaskConfig(cfg *TaskConfig) {
@@ -101,9 +73,8 @@ func normalizeTaskConfig(cfg *TaskConfig) {
 
 func buildSyncConfig(taskCfg *TaskConfig) (*SyncConfig, error) {
 	cfg := &SyncConfig{
-		Version:  "v3",
-		Sources:  map[string]Source{},
-		Profiles: map[string]Profile{},
+		Version: "v3",
+		Sources: map[string]Source{},
 	}
 
 	for repoIndex, repo := range taskCfg.Repositories {
@@ -132,21 +103,12 @@ func buildSyncConfig(taskCfg *TaskConfig) (*SyncConfig, error) {
 				Source: sourceID,
 				Path:   targetPath,
 				Mode:   file.Mode,
-				Merge:  file.XVorbere.Merge,
-				Backup: file.XVorbere.Backup,
+				Merge:  MergeOverwrite,
 			}
 			if strings.TrimSpace(file.Digest) != "" {
-				rule.Checksum = "sha256:" + strings.TrimSpace(strings.ToLower(file.Digest))
+				rule.Checksum = strings.TrimSpace(strings.ToLower(file.Digest))
 			}
-
-			if strings.TrimSpace(file.XVorbere.Profile) == "" {
-				cfg.Files = append(cfg.Files, rule)
-				continue
-			}
-			profile := file.XVorbere.Profile
-			entry := cfg.Profiles[profile]
-			entry.Files = append(entry.Files, rule)
-			cfg.Profiles[profile] = entry
+			cfg.Files = append(cfg.Files, rule)
 		}
 	}
 

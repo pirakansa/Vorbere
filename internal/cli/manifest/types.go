@@ -35,7 +35,6 @@ type RepositoryFile struct {
 	Rename         string       `yaml:"rename"`
 	Mode           string       `yaml:"mode"`
 	Symlink        *SymlinkSpec `yaml:"symlink"`
-	XVorbere       FileBehavior `yaml:"x_vorbere"`
 }
 
 // SymlinkSpec is kept for schema compatibility; currently unsupported.
@@ -44,24 +43,11 @@ type SymlinkSpec struct {
 	Target string `yaml:"target"`
 }
 
-// FileBehavior contains vorbere-specific sync behavior extensions.
-type FileBehavior struct {
-	Merge   string `yaml:"merge"`
-	Backup  string `yaml:"backup"`
-	Profile string `yaml:"profile"`
-}
-
 // SyncConfig is the normalized internal sync manifest.
 type SyncConfig struct {
-	Version  string             `yaml:"version"`
-	Sources  map[string]Source  `yaml:"sources"`
-	Files    []FileRule         `yaml:"files"`
-	Profiles map[string]Profile `yaml:"profiles"`
-}
-
-// Profile appends profile-specific file rules.
-type Profile struct {
-	Files []FileRule `yaml:"files"`
+	Version string            `yaml:"version"`
+	Sources map[string]Source `yaml:"sources"`
+	Files   []FileRule        `yaml:"files"`
 }
 
 // Source defines downloadable resource metadata.

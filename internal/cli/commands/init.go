@@ -62,8 +62,6 @@ repositories:
       - file_name: path/to/file
         out_dir: .
         rename: file
-        x_vorbere:
-          merge: three_way
-          backup: timestamp
+        mode: "0644"
 `
 }

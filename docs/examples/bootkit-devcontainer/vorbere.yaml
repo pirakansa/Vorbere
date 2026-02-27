@@ -2,8 +2,8 @@ version: 3
 
 tasks:
   sync:
-    run: "vorbere sync --profile devcontainer --backup timestamp"
-    desc: sync bootkit-managed files into this repository and devcontainer mount
+    run: "vorbere sync --backup timestamp"
+    desc: sync bootkit-managed files into this repository
 
   fmt:
     run: "npm run format"
@@ -32,28 +32,19 @@ repositories:
       - file_name: AGENTS.md
         out_dir: .
         rename: AGENTS.md
-        x_vorbere:
-          merge: three_way
-          backup: timestamp
+        mode: "0644"
 
       - file_name: .devcontainer/devcontainer.json
         out_dir: .devcontainer
         rename: devcontainer.json
-        x_vorbere:
-          merge: three_way
-          backup: timestamp
+        mode: "0644"
 
       - file_name: .agents/skills/conventional-commits-authoring/SKILL.md
         out_dir: .agents/skills/conventional-commits-authoring
         rename: SKILL.md
-        x_vorbere:
-          merge: overwrite
-          backup: timestamp
+        mode: "0644"
 
       - file_name: templates/codex/auth.json
         out_dir: /workspaces/.persist/codex
         rename: auth.json
-        x_vorbere:
-          profile: devcontainer
-          merge: keep_local
-          backup: none
+        mode: "0600"

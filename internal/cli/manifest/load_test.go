@@ -18,10 +18,6 @@ func TestResolveSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 						OutDir:   "dest",
 						Rename:   "renamed.txt",
 						Digest:   "abcdef",
-						XVorbere: FileBehavior{
-							Merge:  MergeOverwrite,
-							Backup: "timestamp",
-						},
 					},
 				},
 			},
@@ -39,14 +35,11 @@ func TestResolveSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 	if rule.Path != filepath.Join("dest", "renamed.txt") {
 		t.Fatalf("unexpected rule path: %s", rule.Path)
 	}
-	if rule.Checksum != "sha256:abcdef" {
+	if rule.Checksum != "abcdef" {
 		t.Fatalf("unexpected checksum: %s", rule.Checksum)
 	}
 	if rule.Merge != MergeOverwrite {
 		t.Fatalf("unexpected merge: %s", rule.Merge)
-	}
-	if rule.Backup != "timestamp" {
-		t.Fatalf("unexpected backup: %s", rule.Backup)
 	}
 	src := resolved.Sources[rule.Source]
 	if src.URL != "https://example.com/base/a.txt" {
@@ -54,7 +47,7 @@ func TestResolveSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 	}
 }
 
-func TestResolveSyncConfigSplitsRulesIntoProfile(t *testing.T) {
+func TestResolveSyncConfigCollectsAllRepositoryFiles(t *testing.T) {
 	temp := t.TempDir()
 	cfg := &TaskConfig{
 		Version: 3,
@@ -63,11 +56,7 @@ func TestResolveSyncConfigSplitsRulesIntoProfile(t *testing.T) {
 				URL: "https://example.com",
 				Files: []RepositoryFile{
 					{FileName: "base.txt", OutDir: "."},
-					{
-						FileName: "profile.txt",
-						OutDir:   ".",
-						XVorbere: FileBehavior{Profile: "devcontainer"},
-					},
+					{FileName: "profile.txt", OutDir: "."},
 				},
 			},
 		},
@@ -76,15 +65,8 @@ func TestResolveSyncConfigSplitsRulesIntoProfile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveSyncConfig returned error: %v", err)
 	}
-	if len(resolved.Files) != 1 {
-		t.Fatalf("expected one base rule, got %d", len(resolved.Files))
-	}
-	files, err := ResolveProfileFiles(resolved, "devcontainer")
-	if err != nil {
-		t.Fatalf("ResolveProfileFiles returned error: %v", err)
-	}
-	if len(files) != 2 {
-		t.Fatalf("expected 2 files with profile, got %d", len(files))
+	if len(resolved.Files) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(resolved.Files))
 	}
 }
 

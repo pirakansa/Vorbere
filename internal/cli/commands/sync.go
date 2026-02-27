@@ -10,10 +10,9 @@ import (
 )
 
 type syncCommandOptions struct {
-	mode    string
-	backup  string
-	dryRun  bool
-	profile string
+	mode   string
+	backup string
+	dryRun bool
 }
 
 func newSyncCmd(ctx *appContext) *cobra.Command {
@@ -29,7 +28,6 @@ func newSyncCmd(ctx *appContext) *cobra.Command {
 	cmd.Flags().StringVar(&opts.mode, "mode", "", "merge mode override: three_way|overwrite|keep_local")
 	cmd.Flags().StringVar(&opts.backup, "backup", "", "backup strategy override: none|timestamp")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "show actions without writing files")
-	cmd.Flags().StringVar(&opts.profile, "profile", "", "profile to append file rules")
 	return cmd
 }
 
@@ -49,7 +47,6 @@ func runSyncWithOptions(ctx *appContext, opts syncCommandOptions) error {
 		ModeOverride: opts.mode,
 		Backup:       opts.backup,
 		DryRun:       opts.dryRun,
-		Profile:      opts.profile,
 	})
 	printSyncResult(res)
 	if err != nil {

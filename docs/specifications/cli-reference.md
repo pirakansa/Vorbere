@@ -42,7 +42,6 @@ Flags:
 - `--mode three_way|overwrite|keep_local`: override merge mode
 - `--backup none|timestamp`: override backup strategy
 - `--dry-run`: print summary without writing files
-- `--profile <name>`: append profile file rules
 
 ### `vorbere plan`
 
@@ -51,7 +50,7 @@ Preview sync operations.
 Behavior:
 
 - Equivalent to `vorbere sync --dry-run`.
-- Supports `--mode`, `--backup`, and `--profile`.
+- Supports `--mode` and `--backup`.
 
 ## Exit codes
 

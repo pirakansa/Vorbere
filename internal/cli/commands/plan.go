@@ -16,6 +16,5 @@ func newPlanCmd(ctx *appContext) *cobra.Command {
 	}
 	cmd.Flags().StringVar(&opts.mode, "mode", "", "merge mode override: three_way|overwrite|keep_local")
 	cmd.Flags().StringVar(&opts.backup, "backup", "", "backup strategy override: none|timestamp")
-	cmd.Flags().StringVar(&opts.profile, "profile", "", "profile to append file rules")
 	return cmd
 }

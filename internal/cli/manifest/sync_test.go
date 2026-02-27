@@ -12,7 +12,7 @@ import (
 	"github.com/pirakansa/vorbere/internal/cli/shared"
 )
 
-func TestSyncThreeWayConflictAndOverwrite(t *testing.T) {
+func TestSyncDefaultOverwriteAndBackupOverride(t *testing.T) {
 	content := "v1"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(content))
@@ -45,12 +45,17 @@ func TestSyncThreeWayConflictAndOverwrite(t *testing.T) {
 		t.Fatalf("write local change: %v", err)
 	}
 
-	_, err = Sync(cfg, opts)
-	if err == nil {
-		t.Fatalf("expected conflict error")
+	res, err = Sync(cfg, opts)
+	if err != nil {
+		t.Fatalf("expected default overwrite behavior, got err=%v", err)
 	}
-	if err != ErrSyncConflict {
-		t.Fatalf("expected ErrSyncConflict got %v", err)
+	if res.Updated != 1 {
+		t.Fatalf("expected updated=1 got %+v", res)
+	}
+
+	content = "v3"
+	if err := os.WriteFile(absTarget, []byte("local-change-2"), 0o644); err != nil {
+		t.Fatalf("write second local change: %v", err)
 	}
 
 	overwriteOpts := opts
@@ -69,8 +74,8 @@ func TestSyncThreeWayConflictAndOverwrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read target: %v", err)
 	}
-	if string(b) != "v2" {
-		t.Fatalf("expected target=v2 got %q", string(b))
+	if string(b) != "v3" {
+		t.Fatalf("expected target=v3 got %q", string(b))
 	}
 
 	backupPath := fmt.Sprintf("%s.%s.bak", absTarget, "20260227120000")
@@ -148,7 +153,7 @@ func TestSyncChecksumValidation(t *testing.T) {
 			{
 				Source:   "src",
 				Path:     "checksum.txt",
-				Checksum: "sha256:" + shared.SHA256Hex([]byte("content")),
+				Checksum: shared.BLAKE3Hex([]byte("content")),
 			},
 		},
 	}
@@ -158,7 +163,7 @@ func TestSyncChecksumValidation(t *testing.T) {
 	}
 
 	cfg.Files[0].Path = "checksum-mismatch.txt"
-	cfg.Files[0].Checksum = "sha256:" + shared.SHA256Hex([]byte("different"))
+	cfg.Files[0].Checksum = shared.BLAKE3Hex([]byte("different"))
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName)}); err == nil {
 		t.Fatalf("expected checksum mismatch error")
 	}
@@ -206,67 +211,6 @@ func TestSyncWritesLockMetadata(t *testing.T) {
 	}
 }
 
-func TestSyncProfileAppliesAdditionalRules(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/base":
-			_, _ = w.Write([]byte("base"))
-		case "/profile":
-			_, _ = w.Write([]byte("profile"))
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	defer server.Close()
-
-	temp := t.TempDir()
-	cfg := &SyncConfig{
-		Version: "v3",
-		Sources: map[string]Source{
-			"base":    {URL: server.URL + "/base"},
-			"profile": {URL: server.URL + "/profile"},
-		},
-		Files: []FileRule{
-			{Source: "base", Path: "base.txt"},
-		},
-		Profiles: map[string]Profile{
-			"devcontainer": {
-				Files: []FileRule{
-					{Source: "profile", Path: "profile.txt"},
-				},
-			},
-		},
-	}
-
-	_, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName), Profile: "devcontainer"})
-	if err != nil {
-		t.Fatalf("sync failed: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(temp, "base.txt")); err != nil {
-		t.Fatalf("expected base file: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(temp, "profile.txt")); err != nil {
-		t.Fatalf("expected profile file: %v", err)
-	}
-}
-
-func TestSyncReturnsErrorForUnknownProfile(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("base"))
-	}))
-	defer server.Close()
-
-	temp := t.TempDir()
-	cfg := &SyncConfig{
-		Version: "v3",
-		Sources: map[string]Source{"base": {URL: server.URL}},
-		Files:   []FileRule{{Source: "base", Path: "base.txt"}},
-	}
-	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName), Profile: "missing"}); err == nil {
-		t.Fatalf("expected error for unknown profile")
-	}
-}
-
 func TestSyncReturnsErrorForHTTPStatusFailure(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "boom", http.StatusInternalServerError)
@@ -281,40 +225,6 @@ func TestSyncReturnsErrorForHTTPStatusFailure(t *testing.T) {
 	}
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName)}); err == nil {
 		t.Fatalf("expected HTTP status failure")
-	}
-}
-
-func TestSyncReturnsErrorForInvalidChecksumFormat(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("content"))
-	}))
-	defer server.Close()
-
-	temp := t.TempDir()
-	cfg := &SyncConfig{
-		Version: "v3",
-		Sources: map[string]Source{"src": {URL: server.URL}},
-		Files:   []FileRule{{Source: "src", Path: "bad-checksum.txt", Checksum: "not-valid"}},
-	}
-	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName)}); err == nil {
-		t.Fatalf("expected invalid checksum format error")
-	}
-}
-
-func TestSyncReturnsErrorForUnsupportedChecksumAlgorithm(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("content"))
-	}))
-	defer server.Close()
-
-	temp := t.TempDir()
-	cfg := &SyncConfig{
-		Version: "v3",
-		Sources: map[string]Source{"src": {URL: server.URL}},
-		Files:   []FileRule{{Source: "src", Path: "bad-checksum-algo.txt", Checksum: "sha1:1234"}},
-	}
-	if _, err := Sync(cfg, SyncOptions{RootDir: temp, LockPath: filepath.Join(temp, LockFileName)}); err == nil {
-		t.Fatalf("expected unsupported checksum algorithm error")
 	}
 }
 

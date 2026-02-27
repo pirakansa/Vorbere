@@ -47,20 +47,19 @@ without knowing repository-specific tools.
 Preview changes first:
 
 ```bash
-vorbere plan --profile devcontainer
+vorbere plan
 ```
 
 Apply sync with backup:
 
 ```bash
-vorbere sync --profile devcontainer --backup timestamp
+vorbere sync --backup timestamp
 ```
 
 Notes:
 
-- `three_way` detects conflicts when both local and remote changed.
-- `overwrite` always writes incoming content.
-- `keep_local` keeps existing local files and skips replacement.
+- Default sync behavior is overwrite.
+- `--mode` can switch behavior to `three_way` or `keep_local` when needed.
 
 ## 4. Run common tasks
 
@@ -77,18 +76,16 @@ The actual commands are resolved from `vorbere.yaml`.
 
 ## 5. Pattern for personal/auth files in DevContainer
 
-For user-specific files, put entries in a profile (for example `devcontainer`) and target the persistent mount path.
+For user-specific files, place them under a persistent mount path and set restrictive `mode` values.
 
 Example pattern:
 
-- `merge: keep_local`
-- `backup: none`
-
-This keeps local identity/auth files intact after container rebuilds.
+- `out_dir: /workspaces/.persist/codex`
+- `mode: "0600"`
 
 ## 6. Operational recommendations
 
-- Use `three_way` for repository-managed files committed to Git.
-- Use `keep_local` for personal files under persistent mounts.
+- Use the default overwrite flow for managed bootstrap files.
+- Use `--mode keep_local` for local-only files when necessary.
 - Use `--backup timestamp` before large updates.
 - Run `vorbere tasks list` after updating `vorbere.yaml`.

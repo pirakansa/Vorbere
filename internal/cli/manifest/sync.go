@@ -29,7 +29,6 @@ type SyncOptions struct {
 	ModeOverride string
 	Backup       string
 	DryRun       bool
-	Profile      string
 	Now          func() time.Time
 }
 
@@ -56,10 +55,7 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 		return nil, err
 	}
 
-	rules, err := ResolveProfileFiles(cfg, opts.Profile)
-	if err != nil {
-		return nil, err
-	}
+	rules := cfg.Files
 
 	lock, err := LoadLock(opts.LockPath)
 	if err != nil {
@@ -231,7 +227,7 @@ func chooseMergeMode(rule, override string) string {
 		return override
 	}
 	if rule == "" {
-		return MergeThreeWay
+		return MergeOverwrite
 	}
 	return rule
 }
@@ -250,16 +246,11 @@ func verifyChecksum(content []byte, checksum string) error {
 	if checksum == "" {
 		return nil
 	}
-	parts := strings.SplitN(checksum, ":", 2)
-	if len(parts) != 2 {
-		return errors.New("checksum must be <algo>:<value>")
+	value := strings.TrimSpace(strings.ToLower(checksum))
+	if value == "" {
+		return nil
 	}
-	algo := strings.ToLower(strings.TrimSpace(parts[0]))
-	value := strings.TrimSpace(parts[1])
-	if algo != "sha256" {
-		return fmt.Errorf("unsupported checksum algo: %s", algo)
-	}
-	if shared.SHA256Hex(content) != value {
+	if shared.BLAKE3Hex(content) != value {
 		return errors.New("checksum mismatch")
 	}
 	return nil
