@@ -23,7 +23,7 @@ vorbere run ci
 
 ## Documentation
 
-- User guide: `docs/user-guides/bootkit-devcontainer-workflow.md`
-- CLI reference: `docs/specifications/cli-reference.md`
-- Manifest reference: `docs/specifications/manifest-reference.md`
-- Practical examples: `docs/examples/bootkit-devcontainer/`
+- User guide: [docs/user-guides/bootkit-devcontainer-workflow.md](docs/user-guides/bootkit-devcontainer-workflow.md)
+- CLI reference: [docs/specifications/cli-reference.md](docs/specifications/cli-reference.md)
+- Manifest reference: [docs/specifications/manifest-reference.md](docs/specifications/manifest-reference.md)
+- Practical examples: [docs/examples/bootkit-devcontainer/](docs/examples/bootkit-devcontainer/)
