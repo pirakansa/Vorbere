@@ -1,8 +1,11 @@
 package main
 
-import "fmt"
+import (
+	"os"
 
-// main prints a simple Hello World message to stdout.
+	"github.com/pirakansa/vorbere/internal/cli/commands"
+)
+
 func main() {
-	fmt.Println("Hello, World!")
+	os.Exit(commands.Execute())
 }
