@@ -31,6 +31,11 @@ type archiveEntry struct {
 	mode os.FileMode
 }
 
+type archiveApplySummary struct {
+	created bool
+	updated bool
+}
+
 func applyProcessedRule(targetPath string, artifact []byte, rule FileRule, opts SyncOptions) (string, error) {
 	processed, err := processArtifact(artifact, rule)
 	if err != nil {
@@ -95,37 +100,48 @@ func selectArchiveContent(content []byte, encoding, extract string, expandArchiv
 		return &processedArtifact{entries: entries}, nil
 	}
 
-	for _, entry := range entries {
-		if entry.path == extract {
-			return &processedArtifact{
-				single: &processedFile{
-					content: entry.body,
-					mode:    entry.mode,
-				},
-			}, nil
-		}
+	if file := findExactArchiveEntry(entries, extract); file != nil {
+		return &processedArtifact{single: file}, nil
 	}
 
-	prefix := extract + "/"
-	var children []archiveEntry
-	for _, entry := range entries {
-		if strings.HasPrefix(entry.path, prefix) {
-			relativePath := strings.TrimPrefix(entry.path, prefix)
-			if relativePath == "" {
-				continue
-			}
-			children = append(children, archiveEntry{
-				path: relativePath,
-				body: entry.body,
-				mode: entry.mode,
-			})
-		}
-	}
+	children := collectArchiveChildren(entries, extract)
 	if len(children) > 0 {
 		return &processedArtifact{entries: children}, nil
 	}
 
 	return nil, fmt.Errorf("extract path %q not found in archive", extract)
+}
+
+func findExactArchiveEntry(entries []archiveEntry, extract string) *processedFile {
+	for _, entry := range entries {
+		if entry.path == extract {
+			return &processedFile{
+				content: entry.body,
+				mode:    entry.mode,
+			}
+		}
+	}
+	return nil
+}
+
+func collectArchiveChildren(entries []archiveEntry, extract string) []archiveEntry {
+	prefix := extract + "/"
+	children := make([]archiveEntry, 0)
+	for _, entry := range entries {
+		if !strings.HasPrefix(entry.path, prefix) {
+			continue
+		}
+		relativePath := strings.TrimPrefix(entry.path, prefix)
+		if relativePath == "" {
+			continue
+		}
+		children = append(children, archiveEntry{
+			path: relativePath,
+			body: entry.body,
+			mode: entry.mode,
+		})
+	}
+	return children
 }
 
 func readArchiveEntries(content []byte, encoding string) ([]archiveEntry, error) {
@@ -201,8 +217,7 @@ func normalizeArchiveEntryName(value string) (string, error) {
 }
 
 func applyArchiveEntries(targetRoot string, entries []archiveEntry, opts SyncOptions) (string, error) {
-	anyCreated := false
-	anyUpdated := false
+	summary := archiveApplySummary{}
 
 	for _, entry := range entries {
 		targetPath, err := resolveArchiveTargetPath(targetRoot, entry.path)
@@ -218,21 +233,29 @@ func applyArchiveEntries(targetRoot string, entries []archiveEntry, opts SyncOpt
 		if err != nil {
 			return "", err
 		}
-		if outcome == outcomeUpdated {
-			anyUpdated = true
-		}
-		if outcome == outcomeCreated {
-			anyCreated = true
-		}
+		updateArchiveApplySummary(&summary, outcome)
 	}
 
+	return summary.outcome(), nil
+}
+
+func updateArchiveApplySummary(summary *archiveApplySummary, outcome string) {
+	if outcome == outcomeUpdated {
+		summary.updated = true
+	}
+	if outcome == outcomeCreated {
+		summary.created = true
+	}
+}
+
+func (s archiveApplySummary) outcome() string {
 	switch {
-	case anyUpdated:
-		return outcomeUpdated, nil
-	case anyCreated:
-		return outcomeCreated, nil
+	case s.updated:
+		return outcomeUpdated
+	case s.created:
+		return outcomeCreated
 	default:
-		return outcomeUnchanged, nil
+		return outcomeUnchanged
 	}
 }
 
