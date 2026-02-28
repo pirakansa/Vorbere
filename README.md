@@ -27,6 +27,34 @@ vorbere sync
 vorbere run ci
 ```
 
+## GitHub Action
+
+```yaml
+- uses: pirakansa/vorbere@main
+  with:
+    version: latest
+
+- run: vorbere --config vorbere.yaml run lint
+- run: vorbere --config vorbere.yaml run test
+- run: vorbere --config vorbere.yaml run build
+```
+
+For example, replace Makefile-based CI steps with:
+
+```yaml
+- uses: actions/setup-go@v5
+  with:
+    go-version: '^1.24.0'
+
+- uses: pirakansa/vorbere@main
+  with:
+    version: latest
+
+- run: vorbere --config vorbere.yaml run lint
+- run: vorbere --config vorbere.yaml run test
+- run: vorbere --config vorbere.yaml run build
+```
+
 ## Shell Completion
 
 ```bash
