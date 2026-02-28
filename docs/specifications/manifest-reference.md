@@ -120,3 +120,7 @@ repositories:
         download_digest: sha256:<hex-of-downloaded-tar.xz>
         out_dir: $HOME/.local/lib
 ```
+
+## TODO
+
+- Add per-file OS/architecture selection (for example `os` / `arch` fields under `repositories[].files[]`) so one manifest can switch download targets without maintaining multiple config files.
