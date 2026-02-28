@@ -26,6 +26,15 @@ type SyncOptions struct {
 	Overwrite bool
 	DryRun    bool
 	Now       func() time.Time
+	OnFile    func(SyncFileProgress)
+}
+
+// SyncFileProgress describes one processed file during sync.
+type SyncFileProgress struct {
+	Index   int
+	Total   int
+	Path    string
+	Outcome string
 }
 
 // SyncResult describes sync outcome.
@@ -49,7 +58,8 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 	rules := cfg.Files
 
 	res := &SyncResult{}
-	for _, rule := range rules {
+	total := len(rules)
+	for index, rule := range rules {
 		src := cfg.Sources[rule.Source]
 		incoming, err := download(src)
 		if err != nil {
@@ -66,6 +76,14 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 		}
 
 		recordOutcome(res, outcome)
+		if opts.OnFile != nil {
+			opts.OnFile(SyncFileProgress{
+				Index:   index + 1,
+				Total:   total,
+				Path:    target,
+				Outcome: outcome,
+			})
+		}
 	}
 	return res, nil
 }

@@ -42,6 +42,9 @@ func runSyncWithOptions(ctx *appContext, opts syncCommandOptions) error {
 		RootDir:   rootDir,
 		Overwrite: opts.overwrite,
 		DryRun:    opts.dryRun,
+		OnFile: func(progress manifest.SyncFileProgress) {
+			fmt.Println(formatSyncProgress(progress))
+		},
 	})
 	printSyncResult(res)
 	if err != nil {
@@ -55,4 +58,8 @@ func printSyncResult(res *manifest.SyncResult) {
 		return
 	}
 	fmt.Printf("created=%d updated=%d unchanged=%d\n", res.Created, res.Updated, res.Unchanged)
+}
+
+func formatSyncProgress(progress manifest.SyncFileProgress) string {
+	return fmt.Sprintf("[%d/%d] %s %s", progress.Index, progress.Total, progress.Outcome, progress.Path)
 }

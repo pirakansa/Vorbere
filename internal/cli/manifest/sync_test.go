@@ -171,3 +171,40 @@ func TestSyncReturnsErrorForHTTPStatusFailure(t *testing.T) {
 		t.Fatalf("expected HTTP status failure")
 	}
 }
+
+func TestSyncReportsPerFileProgress(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("content"))
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	cfg := &SyncConfig{
+		Version: "v3",
+		Sources: map[string]Source{"src": {URL: server.URL}},
+		Files: []FileRule{
+			{Source: "src", Path: "a.txt"},
+			{Source: "src", Path: "b.txt"},
+		},
+	}
+
+	var progress []SyncFileProgress
+	_, err := Sync(cfg, SyncOptions{
+		RootDir: temp,
+		OnFile: func(item SyncFileProgress) {
+			progress = append(progress, item)
+		},
+	})
+	if err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+	if len(progress) != 2 {
+		t.Fatalf("expected 2 progress entries, got %d", len(progress))
+	}
+	if progress[0].Index != 1 || progress[0].Total != 2 || progress[0].Outcome != outcomeCreated {
+		t.Fatalf("unexpected first progress entry: %#v", progress[0])
+	}
+	if progress[1].Index != 2 || progress[1].Total != 2 || progress[1].Outcome != outcomeCreated {
+		t.Fatalf("unexpected second progress entry: %#v", progress[1])
+	}
+}

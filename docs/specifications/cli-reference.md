@@ -40,6 +40,7 @@ Sync files from `repositories` in `vorbere.yaml`.
 Default behavior:
 
 - backup strategy: `timestamp`
+- prints per-file progress lines: `[index/total] outcome path`
 - prints result summary: `created`, `updated`, `unchanged`
 
 Flags:
