@@ -69,7 +69,7 @@ func TestInitTemplateContainsRepositories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("vorbere.yaml missing: %v", err)
 	}
-	if !containsAll(string(b), []string{"version: 3", "repositories:", "file_name:"}) {
+	if !containsAll(string(b), []string{"version: 1", "repositories:", "file_name:"}) {
 		t.Fatalf("unexpected template content:\n%s", string(b))
 	}
 }
@@ -77,7 +77,7 @@ func TestInitTemplateContainsRepositories(t *testing.T) {
 func TestRunCommandReturnsDefinedExitCodes(t *testing.T) {
 	temp := t.TempDir()
 	configPath := filepath.Join(temp, "vorbere.yaml")
-	cfg := `version: 3
+	cfg := `version: 1
 tasks:
   ok:
     run: "echo ok"
@@ -139,7 +139,7 @@ func TestLoadTaskAndRootUsesCWDForRemoteConfig(t *testing.T) {
 	}
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("version: 3\ntasks:\n  test:\n    run: \"echo ok\"\n"))
+		_, _ = w.Write([]byte("version: 1\ntasks:\n  test:\n    run: \"echo ok\"\n"))
 	}))
 	defer server.Close()
 
@@ -162,7 +162,7 @@ func TestSyncCommandSucceedsWithOverwriteFlag(t *testing.T) {
 	}))
 	defer server.Close()
 
-	taskBody := `version: 3
+	taskBody := `version: 1
 repositories:
   - url: ` + server.URL + `
     files:

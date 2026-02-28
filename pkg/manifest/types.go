@@ -27,8 +27,8 @@ type Repository struct {
 // RepositoryFile defines one fetch-and-place operation.
 type RepositoryFile struct {
 	FileName       string       `yaml:"file_name"`
-	Digest         string       `yaml:"digest"`
-	ArtifactDigest string       `yaml:"artifact_digest"`
+	DownloadDigest string       `yaml:"download_digest"`
+	OutputDigest   string       `yaml:"output_digest"`
 	Encoding       string       `yaml:"encoding"`
 	Extract        string       `yaml:"extract"`
 	OutDir         string       `yaml:"out_dir"`
@@ -58,8 +58,12 @@ type Source struct {
 
 // FileRule defines one target placement operation.
 type FileRule struct {
-	Source   string `yaml:"source"`
-	Path     string `yaml:"path"`
-	Mode     string `yaml:"mode"`
-	Checksum string `yaml:"checksum"`
+	Source           string `yaml:"source"`
+	Path             string `yaml:"path"`
+	Mode             string `yaml:"mode"`
+	DownloadChecksum string `yaml:"download_checksum"`
+	OutputChecksum   string `yaml:"output_checksum"`
+	Encoding         string `yaml:"encoding"`
+	Extract          string `yaml:"extract"`
+	ExpandArchive    bool   `yaml:"expand_archive"`
 }

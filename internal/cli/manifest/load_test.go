@@ -3,23 +3,25 @@ package manifest
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestResolveSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 	temp := t.TempDir()
+	const downloadDigest = "blake3:abcdef"
 	cfg := &TaskConfig{
-		Version: 3,
+		Version: 1,
 		Repositories: []Repository{
 			{
 				URL: "https://example.com/base/",
 				Files: []RepositoryFile{
 					{
-						FileName: "a.txt",
-						OutDir:   "dest",
-						Rename:   "renamed.txt",
-						Digest:   "abcdef",
+						FileName:       "a.txt",
+						OutDir:         "dest",
+						Rename:         "renamed.txt",
+						DownloadDigest: downloadDigest,
 					},
 				},
 			},
@@ -37,8 +39,8 @@ func TestResolveSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 	if rule.Path != filepath.Join("dest", "renamed.txt") {
 		t.Fatalf("unexpected rule path: %s", rule.Path)
 	}
-	if rule.Checksum != "abcdef" {
-		t.Fatalf("unexpected checksum: %s", rule.Checksum)
+	if rule.DownloadChecksum != downloadDigest {
+		t.Fatalf("unexpected checksum: %s", rule.DownloadChecksum)
 	}
 	src := resolved.Sources[rule.Source]
 	if src.URL != "https://example.com/base/a.txt" {
@@ -49,7 +51,7 @@ func TestResolveSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 func TestResolveSyncConfigCollectsAllRepositoryFiles(t *testing.T) {
 	temp := t.TempDir()
 	cfg := &TaskConfig{
-		Version: 3,
+		Version: 1,
 		Repositories: []Repository{
 			{
 				URL: "https://example.com",
@@ -69,28 +71,28 @@ func TestResolveSyncConfigCollectsAllRepositoryFiles(t *testing.T) {
 	}
 }
 
-func TestResolveSyncConfigRejectsUnsupportedRepositoryFields(t *testing.T) {
+func TestResolveSyncConfigRejectsUnknownEncoding(t *testing.T) {
 	temp := t.TempDir()
 	cfg := &TaskConfig{
-		Version: 3,
+		Version: 1,
 		Repositories: []Repository{
 			{
 				URL: "https://example.com",
 				Files: []RepositoryFile{
-					{FileName: "a.txt", OutDir: ".", Encoding: "tar+gzip"},
+					{FileName: "a.txt", OutDir: ".", Encoding: "zip"},
 				},
 			},
 		},
 	}
 
 	if _, err := ResolveSyncConfig(cfg, filepath.Join(temp, "vorbere.yaml")); err == nil {
-		t.Fatalf("expected unsupported field error")
+		t.Fatalf("expected invalid encoding error")
 	}
 }
 
 func TestValidateSyncConfigRejectsMissingSourceURL(t *testing.T) {
 	cfg := &SyncConfig{
-		Version: "v3",
+		Version: "v1",
 		Sources: map[string]Source{
 			"s1": {},
 		},
@@ -104,7 +106,7 @@ func TestValidateSyncConfigRejectsMissingSourceURL(t *testing.T) {
 func TestResolveSyncConfigRejectsTaskWithoutRunOrDependsOn(t *testing.T) {
 	temp := t.TempDir()
 	cfg := &TaskConfig{
-		Version: 3,
+		Version: 1,
 		Tasks: map[string]TaskDef{
 			"broken": {},
 		},
@@ -116,7 +118,7 @@ func TestResolveSyncConfigRejectsTaskWithoutRunOrDependsOn(t *testing.T) {
 
 func TestLoadTaskConfigFromRemoteURL(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("version: 3\n"))
+		_, _ = w.Write([]byte("version: 1\n"))
 	}))
 	defer server.Close()
 
@@ -124,8 +126,8 @@ func TestLoadTaskConfigFromRemoteURL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadTaskConfig returned error: %v", err)
 	}
-	if cfg.Version != 3 {
-		t.Fatalf("expected version=3, got=%d", cfg.Version)
+	if cfg.Version != 1 {
+		t.Fatalf("expected version=1, got=%d", cfg.Version)
 	}
 }
 
@@ -137,6 +139,46 @@ func TestLoadTaskConfigFromRemoteURLReturnsErrorOnNon2xx(t *testing.T) {
 
 	if _, err := LoadTaskConfig(server.URL); err == nil {
 		t.Fatalf("expected error for non-2xx response")
+	}
+}
+
+func TestLoadTaskConfigRejectsUnknownFields(t *testing.T) {
+	temp := t.TempDir()
+	configPath := filepath.Join(temp, "vorbere.yaml")
+	content := `version: 1
+repositories:
+  - url: https://example.com
+    files:
+      - file_name: a.txt
+        out_dir: .
+        artifact_digest: blake3:deadbeef
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	if _, err := LoadTaskConfig(configPath); err == nil {
+		t.Fatalf("expected unknown field error")
+	}
+}
+
+func TestLoadTaskConfigRejectsLegacyDigestField(t *testing.T) {
+	temp := t.TempDir()
+	configPath := filepath.Join(temp, "vorbere.yaml")
+	content := `version: 1
+repositories:
+  - url: https://example.com
+    files:
+      - file_name: a.txt
+        out_dir: .
+        digest: blake3:deadbeef
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	if _, err := LoadTaskConfig(configPath); err == nil {
+		t.Fatalf("expected unknown field error for legacy digest")
 	}
 }
 

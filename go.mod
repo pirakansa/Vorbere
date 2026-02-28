@@ -3,7 +3,9 @@ module github.com/pirakansa/vorbere
 go 1.25
 
 require (
+	github.com/klauspost/compress v1.18.0
 	github.com/spf13/cobra v1.8.1
+	github.com/ulikunitz/xz v0.5.15
 	github.com/zeebo/blake3 v0.2.4
 	gopkg.in/yaml.v3 v3.0.1
 )

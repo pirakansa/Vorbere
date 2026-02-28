@@ -2,12 +2,12 @@
 
 This document defines the `vorbere.yaml` manifest behavior.
 
-Current format: `version: 3` (ppkgmgr-compatible repository/file shape).
+Current format: `version: 1`.
 
 ## vorbere.yaml
 
 ```yaml
-version: 3
+version: 1
 
 tasks:
   test:
@@ -20,25 +20,23 @@ tasks:
 
 repositories:
   - _comment: bootkit files
-    url: https://raw.githubusercontent.com/pirakansa/bootkit/main/
+    url: https://raw.githubusercontent.com/example/repo/main/
     files:
       - file_name: AGENTS.md
         out_dir: .
-        digest: <optional hex>
+        download_digest: <optional <algorithm>:<hex>>
+        output_digest: <optional <algorithm>:<hex>>
         rename: AGENTS.md
         mode: "0644"
-      - file_name: templates/codex/auth.json
-        out_dir: /workspaces/.persist/codex
-        rename: auth.json
 ```
 
-### Top-level fields
+## Top-level fields
 
-- `version`: optional, defaults to `3`
+- `version`: optional, defaults to `1`
 - `tasks`: map of task definitions
 - `repositories`: list of remote repositories to fetch artifacts from
 
-### `tasks` fields
+## `tasks` fields
 
 - `tasks.<name>.run`: shell command (optional when `depends_on` exists)
 - `tasks.<name>.desc`: description shown by `tasks list`
@@ -46,7 +44,7 @@ repositories:
 - `tasks.<name>.cwd`: working directory (absolute or relative to config directory)
 - `tasks.<name>.depends_on`: dependency task names
 
-### `repositories` fields
+## `repositories` fields
 
 - `repositories[].url`: required base URL
 - `repositories[].headers`: optional HTTP headers applied to all files in the repository
@@ -58,19 +56,27 @@ Supported `repositories[].files[]` fields:
 - `out_dir` (required): destination directory (`$ENV` variables are expanded)
 - `rename` (optional): output filename override
 - `mode` (optional): octal output file mode string (example: `"0755"`)
-- `digest` (optional): BLAKE3 hex digest of final output
+- `download_digest` (optional): checksum of downloaded artifact in `<algorithm>:<hex>` format
+- `output_digest` (optional): checksum of decoded/extracted single output in `<algorithm>:<hex>` format
+- `encoding` (optional): `zstd` | `tar+gzip` | `tar+xz`
+- `extract` (optional): archive path to extract; omit or `"."` to extract entire archive into `out_dir`
 
 Notes:
 
-- `digest` is a plain BLAKE3 hex string (no `algo:` prefix).
-- When `digest` is set and verification fails, sync returns an error.
+- Supported digest algorithms: `blake3`, `sha256`, `md5`.
+- `download_digest` is verified before decode/extract.
+- `output_digest` is verified only for single-output cases.
+- `output_digest` is invalid when extraction resolves to multiple files.
+- Legacy fields `digest` and `artifact_digest` are not supported in `version: 1`.
+- `rename` and `mode` apply to single-output cases.
+- For multi-output extraction, `mode` is ignored.
+- `symlink` remains unsupported.
 
-Currently unsupported in `vorbere` (explicitly rejected when set):
+## `extract` behavior
 
-- `artifact_digest`
-- `encoding`
-- `extract`
-- `symlink`
+- `extract` omitted or `"."`: extract entire archive contents into `out_dir`.
+- `extract` points to a file entry: produces a single output.
+- `extract` points to a directory prefix: extracts all matching children as multiple outputs.
 
 ## Backup behavior
 
@@ -81,3 +87,36 @@ Default behavior keeps a timestamp backup before replacing existing files.
 When backup is active, existing destination is copied before overwrite:
 
 `<path>.<YYYYMMDDHHMMSS>.bak`
+
+## Examples
+
+### zstd decode with both digest checks
+
+```yaml
+version: 1
+
+repositories:
+  - url: https://example.com/releases/
+    files:
+      - file_name: tool-linux-amd64.zst
+        encoding: zstd
+        download_digest: blake3:<hex-of-downloaded-zst>
+        output_digest: blake3:<hex-of-decoded-tool>
+        out_dir: $HOME/.local/bin
+        rename: tool
+        mode: "0755"
+```
+
+### tar.xz full extraction
+
+```yaml
+version: 1
+
+repositories:
+  - url: https://example.com/dist/
+    files:
+      - file_name: node-v24.13.1-linux-x64.tar.xz
+        encoding: tar+xz
+        download_digest: sha256:<hex-of-downloaded-tar.xz>
+        out_dir: $HOME/.local/lib
+```

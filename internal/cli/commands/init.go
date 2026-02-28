@@ -39,7 +39,7 @@ func writeIfNotExists(path, content string) error {
 }
 
 func taskTemplate() string {
-	return `version: 3
+	return `version: 1
 tasks:
   fmt:
     run: "echo define formatter command"

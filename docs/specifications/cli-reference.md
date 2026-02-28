@@ -42,6 +42,7 @@ Default behavior:
 - backup strategy: `timestamp`
 - prints per-file progress lines: `[index/total] outcome path`
 - prints result summary: `created`, `updated`, `unchanged`
+- digest behavior (`download_digest` / `output_digest`) follows the manifest specification in `docs/specifications/manifest-reference.md`
 
 Flags:
 
