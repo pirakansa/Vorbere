@@ -30,7 +30,7 @@ vorbere run ci
 ## GitHub Action
 
 ```yaml
-- uses: pirakansa/vorbere@main
+- uses: pirakansa/vorbere@v0
   with:
     version: latest
 
@@ -46,7 +46,7 @@ For example, replace Makefile-based CI steps with:
   with:
     go-version: '^1.24.0'
 
-- uses: pirakansa/vorbere@main
+- uses: pirakansa/vorbere@v0
   with:
     version: latest
 
