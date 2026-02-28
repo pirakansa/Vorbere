@@ -10,3 +10,9 @@ type SymlinkSpec = pkgmanifest.SymlinkSpec
 type SyncConfig = pkgmanifest.SyncConfig
 type Source = pkgmanifest.Source
 type FileRule = pkgmanifest.FileRule
+
+const (
+	EncodingZstd    = pkgmanifest.EncodingZstd
+	EncodingTarGzip = pkgmanifest.EncodingTarGzip
+	EncodingTarXz   = pkgmanifest.EncodingTarXz
+)

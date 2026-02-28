@@ -1,6 +1,9 @@
 package manifest
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -11,7 +14,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/pirakansa/vorbere/internal/cli/shared"
+	"github.com/ulikunitz/xz"
 )
 
 const (
@@ -61,16 +66,16 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 	total := len(rules)
 	for index, rule := range rules {
 		src := cfg.Sources[rule.Source]
-		incoming, err := download(src)
+		artifact, err := download(src)
 		if err != nil {
 			return nil, err
 		}
-		if err := verifyChecksum(incoming, rule.Checksum); err != nil {
+		if err := verifyChecksum(artifact, rule.ArtifactChecksum); err != nil {
 			return nil, err
 		}
 
 		target := resolveTargetPath(opts.RootDir, rule.Path)
-		outcome, err := applyRule(target, incoming, rule.Mode, opts)
+		outcome, err := applyProcessedRule(target, artifact, rule, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -86,6 +91,223 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 		}
 	}
 	return res, nil
+}
+
+func applyProcessedRule(targetPath string, artifact []byte, rule FileRule, opts SyncOptions) (string, error) {
+	processed, err := processArtifact(artifact, rule)
+	if err != nil {
+		return "", err
+	}
+	if processed.single != nil {
+		if err := verifyChecksum(processed.single.content, rule.Checksum); err != nil {
+			return "", err
+		}
+		modeValue := rule.Mode
+		if modeValue == "" && processed.single.mode != 0 {
+			modeValue = fmt.Sprintf("%04o", uint32(processed.single.mode.Perm()))
+		}
+		return applyRule(targetPath, processed.single.content, modeValue, opts)
+	}
+	if rule.Checksum != "" {
+		return "", errors.New("digest cannot be used when extract resolves to multiple files")
+	}
+	return applyArchiveRule(targetPath, processed.entries, opts)
+}
+
+type processedArtifact struct {
+	single  *processedFile
+	entries []archiveEntry
+}
+
+type processedFile struct {
+	content []byte
+	mode    os.FileMode
+}
+
+type archiveEntry struct {
+	path string
+	body []byte
+	mode os.FileMode
+}
+
+func processArtifact(artifact []byte, rule FileRule) (*processedArtifact, error) {
+	switch rule.Encoding {
+	case "":
+		return &processedArtifact{single: &processedFile{content: artifact}}, nil
+	case EncodingZstd:
+		decoded, err := decodeZstd(artifact)
+		if err != nil {
+			return nil, err
+		}
+		return &processedArtifact{single: &processedFile{content: decoded}}, nil
+	case EncodingTarGzip, EncodingTarXz:
+		selected, err := selectArchiveContent(artifact, rule.Encoding, rule.Extract, rule.ExpandArchive)
+		if err != nil {
+			return nil, err
+		}
+		return selected, nil
+	default:
+		return nil, fmt.Errorf("unsupported encoding %q", rule.Encoding)
+	}
+}
+
+func decodeZstd(content []byte) ([]byte, error) {
+	decoder, err := zstd.NewReader(nil)
+	if err != nil {
+		return nil, err
+	}
+	defer decoder.Close()
+	return decoder.DecodeAll(content, nil)
+}
+
+func selectArchiveContent(content []byte, encoding, extract string, expandArchive bool) (*processedArtifact, error) {
+	entries, err := readArchiveEntries(content, encoding)
+	if err != nil {
+		return nil, err
+	}
+	if expandArchive {
+		return &processedArtifact{entries: entries}, nil
+	}
+	for _, entry := range entries {
+		if entry.path == extract {
+			return &processedArtifact{
+				single: &processedFile{
+					content: entry.body,
+					mode:    entry.mode,
+				},
+			}, nil
+		}
+	}
+	prefix := extract + "/"
+	var children []archiveEntry
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.path, prefix) {
+			rel := strings.TrimPrefix(entry.path, prefix)
+			if rel == "" {
+				continue
+			}
+			children = append(children, archiveEntry{
+				path: rel,
+				body: entry.body,
+				mode: entry.mode,
+			})
+		}
+	}
+	if len(children) > 0 {
+		return &processedArtifact{entries: children}, nil
+	}
+	return nil, fmt.Errorf("extract path %q not found in archive", extract)
+}
+
+func readArchiveEntries(content []byte, encoding string) ([]archiveEntry, error) {
+	var (
+		reader io.Reader = bytes.NewReader(content)
+		closer io.Closer
+	)
+	switch encoding {
+	case EncodingTarGzip:
+		gzipReader, err := gzip.NewReader(reader)
+		if err != nil {
+			return nil, err
+		}
+		reader = gzipReader
+		closer = gzipReader
+	case EncodingTarXz:
+		xzReader, err := xz.NewReader(reader)
+		if err != nil {
+			return nil, err
+		}
+		reader = xzReader
+	default:
+		return nil, fmt.Errorf("unsupported archive encoding %q", encoding)
+	}
+	if closer != nil {
+		defer closer.Close()
+	}
+
+	tarReader := tar.NewReader(reader)
+	var entries []archiveEntry
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if !header.FileInfo().Mode().IsRegular() {
+			continue
+		}
+
+		name, err := normalizeArchiveEntryName(header.Name)
+		if err != nil {
+			return nil, err
+		}
+		body, err := io.ReadAll(tarReader)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, archiveEntry{
+			path: name,
+			body: body,
+			mode: header.FileInfo().Mode().Perm(),
+		})
+	}
+	return entries, nil
+}
+
+func normalizeArchiveEntryName(value string) (string, error) {
+	cleaned := filepath.Clean(value)
+	cleaned = strings.TrimPrefix(cleaned, "./")
+	if cleaned == "." || cleaned == "" {
+		return "", fmt.Errorf("invalid archive entry path %q", value)
+	}
+	if filepath.IsAbs(cleaned) || cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("archive entry path escapes root: %q", value)
+	}
+	return filepath.ToSlash(cleaned), nil
+}
+
+func applyArchiveRule(targetRoot string, entries []archiveEntry, opts SyncOptions) (string, error) {
+	anyCreated := false
+	anyUpdated := false
+	for _, entry := range entries {
+		targetPath, err := resolveArchiveTargetPath(targetRoot, entry.path)
+		if err != nil {
+			return "", err
+		}
+		mode := fmt.Sprintf("%04o", uint32(entry.mode))
+		if entry.mode == 0 {
+			mode = "0644"
+		}
+		outcome, err := applyRule(targetPath, entry.body, mode, opts)
+		if err != nil {
+			return "", err
+		}
+		if outcome == outcomeUpdated {
+			anyUpdated = true
+		}
+		if outcome == outcomeCreated {
+			anyCreated = true
+		}
+	}
+	if anyUpdated {
+		return outcomeUpdated, nil
+	}
+	if anyCreated {
+		return outcomeCreated, nil
+	}
+	return outcomeUnchanged, nil
+}
+
+func resolveArchiveTargetPath(root, rel string) (string, error) {
+	target := filepath.Join(root, filepath.FromSlash(rel))
+	cleanRoot := filepath.Clean(root)
+	cleanTarget := filepath.Clean(target)
+	if cleanTarget != cleanRoot && !strings.HasPrefix(cleanTarget, cleanRoot+string(filepath.Separator)) {
+		return "", fmt.Errorf("archive entry path escapes target root: %q", rel)
+	}
+	return target, nil
 }
 
 func applyRule(targetPath string, incoming []byte, fileMode string, opts SyncOptions) (string, error) {

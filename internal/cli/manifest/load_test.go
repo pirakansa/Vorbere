@@ -69,7 +69,7 @@ func TestResolveSyncConfigCollectsAllRepositoryFiles(t *testing.T) {
 	}
 }
 
-func TestResolveSyncConfigRejectsUnsupportedRepositoryFields(t *testing.T) {
+func TestResolveSyncConfigRejectsUnknownEncoding(t *testing.T) {
 	temp := t.TempDir()
 	cfg := &TaskConfig{
 		Version: 3,
@@ -77,14 +77,14 @@ func TestResolveSyncConfigRejectsUnsupportedRepositoryFields(t *testing.T) {
 			{
 				URL: "https://example.com",
 				Files: []RepositoryFile{
-					{FileName: "a.txt", OutDir: ".", Encoding: "tar+gzip"},
+					{FileName: "a.txt", OutDir: ".", Encoding: "zip"},
 				},
 			},
 		},
 	}
 
 	if _, err := ResolveSyncConfig(cfg, filepath.Join(temp, "vorbere.yaml")); err == nil {
-		t.Fatalf("expected unsupported field error")
+		t.Fatalf("expected invalid encoding error")
 	}
 }
 

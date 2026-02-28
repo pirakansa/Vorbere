@@ -58,8 +58,12 @@ type Source struct {
 
 // FileRule defines one target placement operation.
 type FileRule struct {
-	Source   string `yaml:"source"`
-	Path     string `yaml:"path"`
-	Mode     string `yaml:"mode"`
-	Checksum string `yaml:"checksum"`
+	Source           string `yaml:"source"`
+	Path             string `yaml:"path"`
+	Mode             string `yaml:"mode"`
+	Checksum         string `yaml:"checksum"`
+	ArtifactChecksum string `yaml:"artifact_checksum"`
+	Encoding         string `yaml:"encoding"`
+	Extract          string `yaml:"extract"`
+	ExpandArchive    bool   `yaml:"expand_archive"`
 }

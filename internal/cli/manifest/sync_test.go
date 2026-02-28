@@ -1,6 +1,9 @@
 package manifest
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/klauspost/compress/zstd"
 	"github.com/pirakansa/vorbere/internal/cli/shared"
 )
 
@@ -207,4 +211,129 @@ func TestSyncReportsPerFileProgress(t *testing.T) {
 	if progress[1].Index != 2 || progress[1].Total != 2 || progress[1].Outcome != outcomeCreated {
 		t.Fatalf("unexpected second progress entry: %#v", progress[1])
 	}
+}
+
+func TestSyncTwoPhaseDigestValidationForZstd(t *testing.T) {
+	payload := []byte("decoded-content")
+	artifact := mustEncodeZstd(t, payload)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(artifact)
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	cfg := &SyncConfig{
+		Version: "v3",
+		Sources: map[string]Source{"src": {URL: server.URL}},
+		Files: []FileRule{
+			{
+				Source:           "src",
+				Path:             "bin/tool",
+				Encoding:         EncodingZstd,
+				ArtifactChecksum: shared.BLAKE3Hex(artifact),
+				Checksum:         shared.BLAKE3Hex(payload),
+				Mode:             "0755",
+			},
+		},
+	}
+
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(temp, "bin/tool"))
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	if string(got) != string(payload) {
+		t.Fatalf("unexpected output: %q", string(got))
+	}
+
+	cfg.Files[0].Path = "bin/tool-2"
+	cfg.Files[0].ArtifactChecksum = shared.BLAKE3Hex([]byte("bad"))
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
+		t.Fatalf("expected artifact checksum mismatch")
+	}
+
+	cfg.Files[0].Path = "bin/tool-3"
+	cfg.Files[0].ArtifactChecksum = shared.BLAKE3Hex(artifact)
+	cfg.Files[0].Checksum = shared.BLAKE3Hex([]byte("bad"))
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
+		t.Fatalf("expected final checksum mismatch")
+	}
+}
+
+func TestSyncTarGzipExtractFile(t *testing.T) {
+	artifact := mustBuildTarGzip(t, map[string]string{
+		"pkg/bin/tool":  "tool-binary",
+		"pkg/README.md": "readme",
+	})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(artifact)
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	cfg := &SyncConfig{
+		Version: "v3",
+		Sources: map[string]Source{"src": {URL: server.URL}},
+		Files: []FileRule{
+			{
+				Source:           "src",
+				Path:             "bin/tool",
+				Encoding:         EncodingTarGzip,
+				Extract:          "pkg/bin/tool",
+				ArtifactChecksum: shared.BLAKE3Hex(artifact),
+				Checksum:         shared.BLAKE3Hex([]byte("tool-binary")),
+				Mode:             "0755",
+			},
+		},
+	}
+
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(temp, "bin/tool"))
+	if err != nil {
+		t.Fatalf("read output: %v", err)
+	}
+	if string(got) != "tool-binary" {
+		t.Fatalf("unexpected output: %q", string(got))
+	}
+}
+
+func mustEncodeZstd(t *testing.T, content []byte) []byte {
+	t.Helper()
+	encoder, err := zstd.NewWriter(nil)
+	if err != nil {
+		t.Fatalf("zstd.NewWriter: %v", err)
+	}
+	defer encoder.Close()
+	return encoder.EncodeAll(content, nil)
+}
+
+func mustBuildTarGzip(t *testing.T, files map[string]string) []byte {
+	t.Helper()
+	buf := &bytes.Buffer{}
+	gzipWriter := gzip.NewWriter(buf)
+	tarWriter := tar.NewWriter(gzipWriter)
+	for name, content := range files {
+		header := &tar.Header{
+			Name: name,
+			Mode: 0o644,
+			Size: int64(len(content)),
+		}
+		if err := tarWriter.WriteHeader(header); err != nil {
+			t.Fatalf("WriteHeader(%s): %v", name, err)
+		}
+		if _, err := tarWriter.Write([]byte(content)); err != nil {
+			t.Fatalf("Write(%s): %v", name, err)
+		}
+	}
+	if err := tarWriter.Close(); err != nil {
+		t.Fatalf("tarWriter.Close: %v", err)
+	}
+	if err := gzipWriter.Close(); err != nil {
+		t.Fatalf("gzipWriter.Close: %v", err)
+	}
+	return buf.Bytes()
 }

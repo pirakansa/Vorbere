@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -12,6 +13,9 @@ import (
 const (
 	DefaultTaskConfigVersion = 3
 	SyncConfigVersion        = "v3"
+	EncodingZstd             = "zstd"
+	EncodingTarGzip          = "tar+gzip"
+	EncodingTarXz            = "tar+xz"
 )
 
 func NormalizeTaskConfig(cfg *TaskConfig) {
@@ -87,32 +91,57 @@ func BuildSyncConfig(taskCfg *TaskConfig) (*SyncConfig, error) {
 }
 
 func buildSyncEntry(repo Repository, file RepositoryFile, repoIndex, fileIndex int) (string, Source, FileRule, error) {
-	if err := validateRepositoryFile(file, repoIndex, fileIndex); err != nil {
+	encoding, extract, err := validateRepositoryFile(file, repoIndex, fileIndex)
+	if err != nil {
 		return "", Source{}, FileRule{}, err
 	}
 
-	targetName := file.Rename
-	if strings.TrimSpace(targetName) == "" {
-		targetName = path.Base(file.FileName)
+	expandArchive := isArchiveEncoding(encoding) && extract == ""
+	targetName := strings.TrimSpace(file.Rename)
+	if !expandArchive && targetName == "" {
+		derivedName, err := deriveTargetName(file.FileName, encoding, extract)
+		if err != nil {
+			return "", Source{}, FileRule{}, fmt.Errorf(
+				"repositories[%d].files[%d] %w",
+				repoIndex, fileIndex, err,
+			)
+		}
+		targetName = derivedName
 	}
-	if targetName == "." || targetName == "/" || targetName == "" {
+	if !expandArchive && (targetName == "." || targetName == "/" || targetName == "") {
 		return "", Source{}, FileRule{}, fmt.Errorf(
 			"repositories[%d].files[%d] could not determine output filename",
 			repoIndex, fileIndex,
 		)
 	}
 
-	targetPath := filepath.Join(os.ExpandEnv(file.OutDir), targetName)
+	targetPath := os.ExpandEnv(file.OutDir)
+	if !expandArchive {
+		targetPath = filepath.Join(targetPath, targetName)
+	}
 	sourceID := fmt.Sprintf("r%df%d", repoIndex, fileIndex)
 	source := Source{
 		URL:     joinURL(repo.URL, file.FileName),
 		Headers: repo.Headers,
 	}
 	rule := FileRule{
-		Source:   sourceID,
-		Path:     targetPath,
-		Mode:     file.Mode,
-		Checksum: normalizeDigest(file.Digest),
+		Source:           sourceID,
+		Path:             targetPath,
+		Mode:             file.Mode,
+		Checksum:         normalizeDigest(file.Digest),
+		ArtifactChecksum: normalizeDigest(file.ArtifactDigest),
+		Encoding:         encoding,
+		Extract:          extract,
+		ExpandArchive:    expandArchive,
+	}
+	if rule.ExpandArchive {
+		rule.Mode = ""
+	}
+	if rule.ExpandArchive && rule.Checksum != "" {
+		return "", Source{}, FileRule{}, fmt.Errorf(
+			"repositories[%d].files[%d].digest cannot be used when extract is omitted for archive encodings",
+			repoIndex, fileIndex,
+		)
 	}
 
 	return sourceID, source, rule, nil
@@ -122,30 +151,97 @@ func normalizeDigest(value string) string {
 	return strings.TrimSpace(strings.ToLower(value))
 }
 
-func validateRepositoryFile(file RepositoryFile, repoIndex, fileIndex int) error {
+func validateRepositoryFile(file RepositoryFile, repoIndex, fileIndex int) (string, string, error) {
 	if strings.TrimSpace(file.FileName) == "" {
-		return fmt.Errorf("repositories[%d].files[%d].file_name is required", repoIndex, fileIndex)
+		return "", "", fmt.Errorf("repositories[%d].files[%d].file_name is required", repoIndex, fileIndex)
 	}
 	if strings.TrimSpace(file.OutDir) == "" {
-		return fmt.Errorf("repositories[%d].files[%d].out_dir is required", repoIndex, fileIndex)
+		return "", "", fmt.Errorf("repositories[%d].files[%d].out_dir is required", repoIndex, fileIndex)
 	}
-	if strings.TrimSpace(file.ArtifactDigest) != "" {
-		return fmt.Errorf("repositories[%d].files[%d].artifact_digest is not supported", repoIndex, fileIndex)
+
+	encoding := strings.TrimSpace(strings.ToLower(file.Encoding))
+	switch encoding {
+	case "", EncodingZstd, EncodingTarGzip, EncodingTarXz:
+	default:
+		return "", "", fmt.Errorf(
+			"repositories[%d].files[%d].encoding must be one of %q, %q, %q",
+			repoIndex, fileIndex, EncodingZstd, EncodingTarGzip, EncodingTarXz,
+		)
 	}
-	if strings.TrimSpace(file.Encoding) != "" {
-		return fmt.Errorf("repositories[%d].files[%d].encoding is not supported", repoIndex, fileIndex)
+
+	extract := strings.TrimSpace(file.Extract)
+	if extract == "." {
+		extract = ""
 	}
-	if strings.TrimSpace(file.Extract) != "" {
-		return fmt.Errorf("repositories[%d].files[%d].extract is not supported", repoIndex, fileIndex)
+	if extract != "" && !isArchiveEncoding(encoding) {
+		return "", "", fmt.Errorf(
+			"repositories[%d].files[%d].extract requires archive encoding",
+			repoIndex, fileIndex,
+		)
+	}
+	if isArchiveEncoding(encoding) {
+		cleaned, err := normalizeExtractPath(extract)
+		if err != nil {
+			return "", "", fmt.Errorf(
+				"repositories[%d].files[%d].extract %w",
+				repoIndex, fileIndex, err,
+			)
+		}
+		extract = cleaned
+	} else {
+		extract = ""
 	}
 	if file.Symlink != nil {
-		return fmt.Errorf("repositories[%d].files[%d].symlink is not supported", repoIndex, fileIndex)
+		return "", "", fmt.Errorf("repositories[%d].files[%d].symlink is not supported", repoIndex, fileIndex)
 	}
-	return nil
+	return encoding, extract, nil
 }
 
 func joinURL(base, fileName string) string {
 	base = strings.TrimSpace(base)
 	fileName = strings.TrimSpace(fileName)
 	return strings.TrimRight(base, "/") + "/" + strings.TrimLeft(fileName, "/")
+}
+
+func isArchiveEncoding(encoding string) bool {
+	return encoding == EncodingTarGzip || encoding == EncodingTarXz
+}
+
+func normalizeExtractPath(raw string) (string, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return "", nil
+	}
+	value = strings.TrimPrefix(value, "./")
+	cleaned := path.Clean(value)
+	if cleaned == "." {
+		return "", nil
+	}
+	if path.IsAbs(cleaned) || cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return "", fmt.Errorf("must stay within archive root")
+	}
+	return cleaned, nil
+}
+
+func deriveTargetName(fileName, encoding, extract string) (string, error) {
+	switch {
+	case isArchiveEncoding(encoding):
+		name := path.Base(extract)
+		if name == "." || name == "/" || name == "" {
+			return "", errors.New("could not determine output filename from extract")
+		}
+		return name, nil
+	case encoding == EncodingZstd:
+		base := path.Base(fileName)
+		switch {
+		case strings.HasSuffix(base, ".zst"):
+			return strings.TrimSuffix(base, ".zst"), nil
+		case strings.HasSuffix(base, ".zstd"):
+			return strings.TrimSuffix(base, ".zstd"), nil
+		default:
+			return base, nil
+		}
+	default:
+		return path.Base(fileName), nil
+	}
 }

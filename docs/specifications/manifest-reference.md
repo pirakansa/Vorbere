@@ -58,19 +58,18 @@ Supported `repositories[].files[]` fields:
 - `out_dir` (required): destination directory (`$ENV` variables are expanded)
 - `rename` (optional): output filename override
 - `mode` (optional): octal output file mode string (example: `"0755"`)
-- `digest` (optional): BLAKE3 hex digest of final output
+- `digest` (optional): BLAKE3 hex digest of final output (post-decode/extract)
+- `artifact_digest` (optional): BLAKE3 hex digest of the downloaded artifact before decode/extract
+- `encoding` (optional): `zstd` | `tar+gzip` | `tar+xz`
+- `extract` (optional): archive path to extract; omit or `"."` to extract entire archive into `out_dir`
 
 Notes:
 
-- `digest` is a plain BLAKE3 hex string (no `algo:` prefix).
-- When `digest` is set and verification fails, sync returns an error.
-
-Currently unsupported in `vorbere` (explicitly rejected when set):
-
-- `artifact_digest`
-- `encoding`
-- `extract`
-- `symlink`
+- `digest` and `artifact_digest` are plain BLAKE3 hex strings (no `algo:` prefix).
+- Processing flow is `artifact_digest` verify -> decode/extract -> `digest` verify.
+- For archive full extraction (`extract` omitted or `"."`), `digest` is not supported.
+- `rename` and `mode` apply to single-output cases, and are ignored for full-archive extraction.
+- `symlink` remains unsupported.
 
 ## Backup behavior
 

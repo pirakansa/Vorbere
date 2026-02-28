@@ -38,3 +38,62 @@ func TestBuildSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 		t.Fatalf("unexpected source url: %s", src.URL)
 	}
 }
+
+func TestBuildSyncConfigArchiveExtractRule(t *testing.T) {
+	cfg := &TaskConfig{
+		Version: 3,
+		Repositories: []Repository{{
+			URL: "https://example.com/base/",
+			Files: []RepositoryFile{{
+				FileName:       "tool.tar.gz",
+				ArtifactDigest: "artifact",
+				Digest:         "final",
+				Encoding:       "tar+gzip",
+				Extract:        "bin/tool",
+				OutDir:         "/tmp/bin",
+				Rename:         "tool",
+				Mode:           "0755",
+			}},
+		}},
+	}
+
+	resolved, err := BuildSyncConfig(cfg)
+	if err != nil {
+		t.Fatalf("BuildSyncConfig returned error: %v", err)
+	}
+	rule := resolved.Files[0]
+	if rule.ArtifactChecksum != "artifact" {
+		t.Fatalf("unexpected artifact checksum: %s", rule.ArtifactChecksum)
+	}
+	if rule.Checksum != "final" {
+		t.Fatalf("unexpected checksum: %s", rule.Checksum)
+	}
+	if rule.Encoding != EncodingTarGzip {
+		t.Fatalf("unexpected encoding: %s", rule.Encoding)
+	}
+	if rule.Extract != "bin/tool" {
+		t.Fatalf("unexpected extract: %s", rule.Extract)
+	}
+	if rule.Path != filepath.Join("/tmp/bin", "tool") {
+		t.Fatalf("unexpected path: %s", rule.Path)
+	}
+}
+
+func TestBuildSyncConfigRejectsDigestOnArchiveFullExtraction(t *testing.T) {
+	cfg := &TaskConfig{
+		Version: 3,
+		Repositories: []Repository{{
+			URL: "https://example.com/base/",
+			Files: []RepositoryFile{{
+				FileName: "tool.tar.xz",
+				Encoding: "tar+xz",
+				OutDir:   "/tmp/lib",
+				Digest:   "not-allowed",
+			}},
+		}},
+	}
+
+	if _, err := BuildSyncConfig(cfg); err == nil {
+		t.Fatalf("expected digest validation error")
+	}
+}
