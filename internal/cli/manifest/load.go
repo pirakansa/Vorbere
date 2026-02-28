@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,7 +18,9 @@ func LoadTaskConfig(path string) (*TaskConfig, error) {
 	}
 
 	var cfg TaskConfig
-	if err := yaml.Unmarshal(content, &cfg); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(content))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&cfg); err != nil {
 		return nil, err
 	}
 	pkgmanifest.NormalizeTaskConfig(&cfg)

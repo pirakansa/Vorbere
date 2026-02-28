@@ -13,7 +13,7 @@ func TestRunTaskDependsOnOrder(t *testing.T) {
 	marker := filepath.Join(temp, "result.txt")
 
 	cfg := &manifest.TaskConfig{
-		Version: 3,
+		Version: 1,
 		Tasks: map[string]manifest.TaskDef{
 			"fmt":  {Run: "echo fmt > result.txt"},
 			"ci":   {DependsOn: []string{"fmt", "test"}},
@@ -41,7 +41,7 @@ func TestRunTaskAppliesEnvAndCWD(t *testing.T) {
 	}
 
 	cfg := &manifest.TaskConfig{
-		Version: 3,
+		Version: 1,
 		Tasks: map[string]manifest.TaskDef{
 			"envcwd": {
 				Run: `echo "${MY_VALUE}" > output.txt`,
@@ -68,7 +68,7 @@ func TestRunTaskAppliesEnvAndCWD(t *testing.T) {
 func TestRunTaskDetectsDependencyCycle(t *testing.T) {
 	temp := t.TempDir()
 	cfg := &manifest.TaskConfig{
-		Version: 3,
+		Version: 1,
 		Tasks: map[string]manifest.TaskDef{
 			"a": {DependsOn: []string{"b"}},
 			"b": {DependsOn: []string{"a"}},
@@ -84,7 +84,7 @@ func TestRunTaskAppendsArgsToCommand(t *testing.T) {
 	temp := t.TempDir()
 	marker := filepath.Join(temp, "args.txt")
 	cfg := &manifest.TaskConfig{
-		Version: 3,
+		Version: 1,
 		Tasks: map[string]manifest.TaskDef{
 			"args": {Run: `echo > args.txt`},
 		},

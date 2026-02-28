@@ -8,7 +8,7 @@ import (
 func TestBuildSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 	const digest = "blake3:abcdef"
 	cfg := &TaskConfig{
-		Version: 3,
+		Version: 1,
 		Repositories: []Repository{{
 			URL: "https://example.com/base/",
 			Files: []RepositoryFile{{
@@ -41,21 +41,19 @@ func TestBuildSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 }
 
 func TestBuildSyncConfigArchiveExtractRule(t *testing.T) {
-	const artifactDigest = "blake3:deadbeef"
 	const digest = "blake3:cafebabe"
 	cfg := &TaskConfig{
-		Version: 3,
+		Version: 1,
 		Repositories: []Repository{{
 			URL: "https://example.com/base/",
 			Files: []RepositoryFile{{
-				FileName:       "tool.tar.gz",
-				ArtifactDigest: artifactDigest,
-				Digest:         digest,
-				Encoding:       "tar+gzip",
-				Extract:        "bin/tool",
-				OutDir:         "/tmp/bin",
-				Rename:         "tool",
-				Mode:           "0755",
+				FileName: "tool.tar.gz",
+				Digest:   digest,
+				Encoding: "tar+gzip",
+				Extract:  "bin/tool",
+				OutDir:   "/tmp/bin",
+				Rename:   "tool",
+				Mode:     "0755",
 			}},
 		}},
 	}
@@ -65,9 +63,6 @@ func TestBuildSyncConfigArchiveExtractRule(t *testing.T) {
 		t.Fatalf("BuildSyncConfig returned error: %v", err)
 	}
 	rule := resolved.Files[0]
-	if rule.ArtifactChecksum != artifactDigest {
-		t.Fatalf("unexpected artifact checksum: %s", rule.ArtifactChecksum)
-	}
 	if rule.Checksum != digest {
 		t.Fatalf("unexpected checksum: %s", rule.Checksum)
 	}
@@ -82,9 +77,9 @@ func TestBuildSyncConfigArchiveExtractRule(t *testing.T) {
 	}
 }
 
-func TestBuildSyncConfigRejectsDigestOnArchiveFullExtraction(t *testing.T) {
+func TestBuildSyncConfigAllowsDigestOnArchiveFullExtraction(t *testing.T) {
 	cfg := &TaskConfig{
-		Version: 3,
+		Version: 1,
 		Repositories: []Repository{{
 			URL: "https://example.com/base/",
 			Files: []RepositoryFile{{
@@ -96,14 +91,18 @@ func TestBuildSyncConfigRejectsDigestOnArchiveFullExtraction(t *testing.T) {
 		}},
 	}
 
-	if _, err := BuildSyncConfig(cfg); err == nil {
-		t.Fatalf("expected digest validation error")
+	resolved, err := BuildSyncConfig(cfg)
+	if err != nil {
+		t.Fatalf("BuildSyncConfig returned error: %v", err)
+	}
+	if got := resolved.Files[0].Checksum; got != "blake3:deadbeef" {
+		t.Fatalf("unexpected checksum: %s", got)
 	}
 }
 
 func TestBuildSyncConfigRejectsDigestWithoutPrefix(t *testing.T) {
 	cfg := &TaskConfig{
-		Version: 3,
+		Version: 1,
 		Repositories: []Repository{{
 			URL: "https://example.com/base/",
 			Files: []RepositoryFile{{
@@ -121,7 +120,7 @@ func TestBuildSyncConfigRejectsDigestWithoutPrefix(t *testing.T) {
 
 func TestBuildSyncConfigAcceptsSHA256AndMD5Digests(t *testing.T) {
 	cfg := &TaskConfig{
-		Version: 3,
+		Version: 1,
 		Repositories: []Repository{{
 			URL: "https://example.com/base/",
 			Files: []RepositoryFile{
@@ -148,5 +147,14 @@ func TestBuildSyncConfigAcceptsSHA256AndMD5Digests(t *testing.T) {
 	}
 	if got := resolved.Files[1].Checksum; got != "md5:abcdef" {
 		t.Fatalf("unexpected md5 checksum: %s", got)
+	}
+}
+
+func TestBuildSyncConfigRejectsUnsupportedVersion(t *testing.T) {
+	cfg := &TaskConfig{
+		Version: 3,
+	}
+	if _, err := BuildSyncConfig(cfg); err == nil {
+		t.Fatalf("expected unsupported version error")
 	}
 }

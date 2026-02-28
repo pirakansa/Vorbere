@@ -26,15 +26,14 @@ type Repository struct {
 
 // RepositoryFile defines one fetch-and-place operation.
 type RepositoryFile struct {
-	FileName       string       `yaml:"file_name"`
-	Digest         string       `yaml:"digest"`
-	ArtifactDigest string       `yaml:"artifact_digest"`
-	Encoding       string       `yaml:"encoding"`
-	Extract        string       `yaml:"extract"`
-	OutDir         string       `yaml:"out_dir"`
-	Rename         string       `yaml:"rename"`
-	Mode           string       `yaml:"mode"`
-	Symlink        *SymlinkSpec `yaml:"symlink"`
+	FileName string       `yaml:"file_name"`
+	Digest   string       `yaml:"digest"`
+	Encoding string       `yaml:"encoding"`
+	Extract  string       `yaml:"extract"`
+	OutDir   string       `yaml:"out_dir"`
+	Rename   string       `yaml:"rename"`
+	Mode     string       `yaml:"mode"`
+	Symlink  *SymlinkSpec `yaml:"symlink"`
 }
 
 // SymlinkSpec is kept for schema compatibility; currently unsupported.
@@ -58,12 +57,11 @@ type Source struct {
 
 // FileRule defines one target placement operation.
 type FileRule struct {
-	Source           string `yaml:"source"`
-	Path             string `yaml:"path"`
-	Mode             string `yaml:"mode"`
-	Checksum         string `yaml:"checksum"`
-	ArtifactChecksum string `yaml:"artifact_checksum"`
-	Encoding         string `yaml:"encoding"`
-	Extract          string `yaml:"extract"`
-	ExpandArchive    bool   `yaml:"expand_archive"`
+	Source        string `yaml:"source"`
+	Path          string `yaml:"path"`
+	Mode          string `yaml:"mode"`
+	Checksum      string `yaml:"checksum"`
+	Encoding      string `yaml:"encoding"`
+	Extract       string `yaml:"extract"`
+	ExpandArchive bool   `yaml:"expand_archive"`
 }

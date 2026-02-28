@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	DefaultTaskConfigVersion = 3
-	SyncConfigVersion        = "v3"
+	DefaultTaskConfigVersion = 1
+	SyncConfigVersion        = "v1"
 	EncodingZstd             = "zstd"
 	EncodingTarGzip          = "tar+gzip"
 	EncodingTarXz            = "tar+xz"
@@ -43,6 +43,9 @@ func IsRemoteConfigLocation(value string) bool {
 }
 
 func ValidateTaskConfig(cfg *TaskConfig) error {
+	if cfg.Version != DefaultTaskConfigVersion {
+		return fmt.Errorf("unsupported config version %d (supported: %d)", cfg.Version, DefaultTaskConfigVersion)
+	}
 	for name, task := range cfg.Tasks {
 		if task.Run == "" && len(task.DependsOn) == 0 {
 			return fmt.Errorf("task %q must have run or depends_on", name)
@@ -72,6 +75,10 @@ func ValidateSyncConfig(cfg *SyncConfig) error {
 }
 
 func BuildSyncConfig(taskCfg *TaskConfig) (*SyncConfig, error) {
+	if err := ValidateTaskConfig(taskCfg); err != nil {
+		return nil, err
+	}
+
 	cfg := &SyncConfig{
 		Version: SyncConfigVersion,
 		Sources: map[string]Source{},
@@ -129,33 +136,21 @@ func buildSyncEntry(repo Repository, file RepositoryFile, repoIndex, fileIndex i
 		Headers: repo.Headers,
 	}
 	rule := FileRule{
-		Source:           sourceID,
-		Path:             targetPath,
-		Mode:             file.Mode,
-		Checksum:         "",
-		ArtifactChecksum: "",
-		Encoding:         encoding,
-		Extract:          extract,
-		ExpandArchive:    expandArchive,
+		Source:        sourceID,
+		Path:          targetPath,
+		Mode:          file.Mode,
+		Checksum:      "",
+		Encoding:      encoding,
+		Extract:       extract,
+		ExpandArchive: expandArchive,
 	}
 	checksum, err := normalizeDigest(file.Digest)
 	if err != nil {
 		return "", Source{}, FileRule{}, fmt.Errorf("repositories[%d].files[%d].digest %w", repoIndex, fileIndex, err)
 	}
-	artifactChecksum, err := normalizeDigest(file.ArtifactDigest)
-	if err != nil {
-		return "", Source{}, FileRule{}, fmt.Errorf("repositories[%d].files[%d].artifact_digest %w", repoIndex, fileIndex, err)
-	}
 	rule.Checksum = checksum
-	rule.ArtifactChecksum = artifactChecksum
 	if rule.ExpandArchive {
 		rule.Mode = ""
-	}
-	if rule.ExpandArchive && rule.Checksum != "" {
-		return "", Source{}, FileRule{}, fmt.Errorf(
-			"repositories[%d].files[%d].digest cannot be used when extract is omitted for archive encodings",
-			repoIndex, fileIndex,
-		)
 	}
 
 	return sourceID, source, rule, nil

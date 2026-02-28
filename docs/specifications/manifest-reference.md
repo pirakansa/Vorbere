@@ -2,12 +2,12 @@
 
 This document defines the `vorbere.yaml` manifest behavior.
 
-Current format: `version: 3` (ppkgmgr-compatible repository/file shape).
+Current format: `version: 1`.
 
 ## vorbere.yaml
 
 ```yaml
-version: 3
+version: 1
 
 tasks:
   test:
@@ -20,25 +20,22 @@ tasks:
 
 repositories:
   - _comment: bootkit files
-    url: https://raw.githubusercontent.com/pirakansa/bootkit/main/
+    url: https://raw.githubusercontent.com/example/repo/main/
     files:
       - file_name: AGENTS.md
         out_dir: .
         digest: <optional <algorithm>:<hex>>
         rename: AGENTS.md
         mode: "0644"
-      - file_name: templates/codex/auth.json
-        out_dir: /workspaces/.persist/codex
-        rename: auth.json
 ```
 
-### Top-level fields
+## Top-level fields
 
-- `version`: optional, defaults to `3`
+- `version`: optional, defaults to `1`
 - `tasks`: map of task definitions
 - `repositories`: list of remote repositories to fetch artifacts from
 
-### `tasks` fields
+## `tasks` fields
 
 - `tasks.<name>.run`: shell command (optional when `depends_on` exists)
 - `tasks.<name>.desc`: description shown by `tasks list`
@@ -46,7 +43,7 @@ repositories:
 - `tasks.<name>.cwd`: working directory (absolute or relative to config directory)
 - `tasks.<name>.depends_on`: dependency task names
 
-### `repositories` fields
+## `repositories` fields
 
 - `repositories[].url`: required base URL
 - `repositories[].headers`: optional HTTP headers applied to all files in the repository
@@ -58,32 +55,24 @@ Supported `repositories[].files[]` fields:
 - `out_dir` (required): destination directory (`$ENV` variables are expanded)
 - `rename` (optional): output filename override
 - `mode` (optional): octal output file mode string (example: `"0755"`)
-- `digest` (optional): checksum of final output (post-decode/extract) in `<algorithm>:<hex>` format
-- `artifact_digest` (optional): checksum of downloaded artifact before decode/extract in `<algorithm>:<hex>` format
+- `digest` (optional): checksum of downloaded artifact in `<algorithm>:<hex>` format
 - `encoding` (optional): `zstd` | `tar+gzip` | `tar+xz`
 - `extract` (optional): archive path to extract; omit or `"."` to extract entire archive into `out_dir`
 
 Notes:
 
-- `digest` and `artifact_digest` must use `<algorithm>:<hex>` format.
-- Supported algorithms: `blake3`, `sha256`, `md5`.
-- Processing flow is `artifact_digest` verify -> decode/extract -> `digest` verify.
-- `digest` works only when decode/extract resolves to a single output file. If extraction resolves to multiple files, sync fails when `digest` is set.
-- For archive full extraction (`extract` omitted or `"."`), `digest` is not supported.
-- `rename` applies to single-output cases, and also acts as destination root when an archive directory extraction resolves to multiple files.
-- `mode` applies to single-output cases, and is ignored when extraction resolves to multiple files.
+- `digest` validates the downloaded artifact bytes before decode/extract.
+- Supported digest algorithms: `blake3`, `sha256`, `md5`.
+- `artifact_digest` is removed in `version: 1` and treated as an unknown field.
+- `rename` and `mode` apply only to single-output results.
+- For multi-output extraction, `mode` is ignored.
 - `symlink` remains unsupported.
 
-### `extract` behavior details
+## `extract` behavior
 
 - `extract` omitted or `"."`: extract entire archive contents into `out_dir`.
 - `extract` points to a file entry: produces a single output.
 - `extract` points to a directory prefix: extracts all matching children as multiple outputs.
-
-### `rename` behavior details
-
-- Single output: `rename` overrides destination filename.
-- Multiple outputs from archive extraction: `rename` changes the extraction root directory name.
 
 ## Backup behavior
 
@@ -97,18 +86,17 @@ When backup is active, existing destination is copied before overwrite:
 
 ## Examples
 
-### zstd decode + two-step digest verification
+### zstd decode with artifact digest verification
 
 ```yaml
-version: 3
+version: 1
 
 repositories:
   - url: https://example.com/releases/
     files:
       - file_name: tool-linux-amd64.zst
         encoding: zstd
-        artifact_digest: blake3:<hex-of-downloaded-zst>
-        digest: blake3:<hex-of-decoded-tool>
+        digest: blake3:<hex-of-downloaded-zst>
         out_dir: $HOME/.local/bin
         rename: tool
         mode: "0755"
@@ -117,12 +105,13 @@ repositories:
 ### tar.xz full extraction
 
 ```yaml
-version: 3
+version: 1
 
 repositories:
   - url: https://example.com/dist/
     files:
       - file_name: node-v24.13.1-linux-x64.tar.xz
         encoding: tar+xz
+        digest: sha256:<hex-of-downloaded-tar.xz>
         out_dir: $HOME/.local/lib
 ```

@@ -5,7 +5,7 @@
 - manifest-driven file sync
 - language-agnostic task execution (`run test`, `run lint`, `run ci`)
 
-Manifest format is `version: 3` with `repositories[].files[]` (ppkgmgr-compatible shape).
+Manifest format is `version: 1` with `repositories[].files[]`.
 
 ## Install
 
@@ -33,3 +33,4 @@ vorbere completion --help
 - CLI reference: [docs/specifications/cli-reference.md](docs/specifications/cli-reference.md)
 - Manifest reference: [docs/specifications/manifest-reference.md](docs/specifications/manifest-reference.md)
 - Practical examples: [docs/examples/bootkit-devcontainer/](docs/examples/bootkit-devcontainer/)
+- Encoding examples: [docs/examples/manifest-encodings/](docs/examples/manifest-encodings/)

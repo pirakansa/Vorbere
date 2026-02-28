@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -39,14 +38,10 @@ func applyProcessedRule(targetPath string, artifact []byte, rule FileRule, opts 
 	if processed.single != nil {
 		return applySingleOutput(targetPath, processed.single, rule, opts)
 	}
-	return applyMultiOutput(targetPath, processed.entries, rule, opts)
+	return applyMultiOutput(targetPath, processed.entries, opts)
 }
 
 func applySingleOutput(targetPath string, file *processedFile, rule FileRule, opts SyncOptions) (string, error) {
-	if err := verifyChecksum(file.content, rule.Checksum); err != nil {
-		return "", err
-	}
-
 	modeValue := rule.Mode
 	if modeValue == "" && file.mode != 0 {
 		modeValue = fmt.Sprintf("%04o", uint32(file.mode.Perm()))
@@ -54,10 +49,7 @@ func applySingleOutput(targetPath string, file *processedFile, rule FileRule, op
 	return applyRule(targetPath, file.content, modeValue, opts)
 }
 
-func applyMultiOutput(targetRoot string, entries []archiveEntry, rule FileRule, opts SyncOptions) (string, error) {
-	if rule.Checksum != "" {
-		return "", errors.New("digest cannot be used when extract resolves to multiple files")
-	}
+func applyMultiOutput(targetRoot string, entries []archiveEntry, opts SyncOptions) (string, error) {
 	return applyArchiveEntries(targetRoot, entries, opts)
 }
 
