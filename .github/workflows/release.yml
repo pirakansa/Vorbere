@@ -68,6 +68,8 @@ jobs:
           vorbere_linux-amd64.tar.gz
           vorbere_linux-arm.tar.gz
           vorbere_linux-arm64.tar.gz
+          vorbere_darwin-amd64.tar.gz
+          vorbere_darwin-arm64.tar.gz
           vorbere_win-amd64.tar.gz
         generate_release_notes: true
         draft: false
