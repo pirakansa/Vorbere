@@ -12,30 +12,29 @@ import (
 	"time"
 
 	"github.com/pirakansa/vorbere/internal/cli/shared"
-	pkgmanifest "github.com/pirakansa/vorbere/pkg/manifest"
 )
 
 const (
-	MergeThreeWay  = "three_way"
-	MergeOverwrite = pkgmanifest.MergeOverwrite
-	MergeKeepLocal = "keep_local"
-
 	outcomeCreated   = "created"
 	outcomeUpdated   = "updated"
 	outcomeUnchanged = "unchanged"
-	outcomeSkipped   = "skipped"
 )
-
-var ErrSyncConflict = errors.New("sync conflict")
 
 // SyncOptions controls sync behavior.
 type SyncOptions struct {
-	RootDir      string
-	LockPath     string
-	ModeOverride string
-	Backup       string
-	DryRun       bool
-	Now          func() time.Time
+	RootDir   string
+	Overwrite bool
+	DryRun    bool
+	Now       func() time.Time
+	OnFile    func(SyncFileProgress)
+}
+
+// SyncFileProgress describes one processed file during sync.
+type SyncFileProgress struct {
+	Index   int
+	Total   int
+	Path    string
+	Outcome string
 }
 
 // SyncResult describes sync outcome.
@@ -43,16 +42,11 @@ type SyncResult struct {
 	Created   int
 	Updated   int
 	Unchanged int
-	Skipped   int
-	Conflicts []string
 }
 
 func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 	if opts.RootDir == "" {
 		return nil, errors.New("root dir is required")
-	}
-	if opts.LockPath == "" {
-		opts.LockPath = filepath.Join(opts.RootDir, LockFileName)
 	}
 	if opts.Now == nil {
 		opts.Now = time.Now
@@ -63,13 +57,9 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 
 	rules := cfg.Files
 
-	lock, err := LoadLock(opts.LockPath)
-	if err != nil {
-		return nil, err
-	}
-
 	res := &SyncResult{}
-	for _, rule := range rules {
+	total := len(rules)
+	for index, rule := range rules {
 		src := cfg.Sources[rule.Source]
 		incoming, err := download(src)
 		if err != nil {
@@ -80,105 +70,70 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 		}
 
 		target := resolveTargetPath(opts.RootDir, rule.Path)
-
-		mode := chooseMergeMode(rule.Merge, opts.ModeOverride)
-		backup := chooseBackup(rule.Backup, opts.Backup)
-		outcome, applied, err := applyRule(target, incoming, rule.Mode, mode, backup, lock.Files[target], opts)
+		outcome, err := applyRule(target, incoming, rule.Mode, opts)
 		if err != nil {
-			if errors.Is(err, ErrSyncConflict) {
-				res.Conflicts = append(res.Conflicts, target)
-				continue
-			}
 			return nil, err
 		}
 
 		recordOutcome(res, outcome)
-		if applied {
-			lock.Files[target] = newLockEntry(src.URL, incoming, opts.Now)
-		}
-	}
-
-	if len(res.Conflicts) > 0 {
-		return res, ErrSyncConflict
-	}
-	if !opts.DryRun {
-		if err := SaveLock(opts.LockPath, lock); err != nil {
-			return nil, err
+		if opts.OnFile != nil {
+			opts.OnFile(SyncFileProgress{
+				Index:   index + 1,
+				Total:   total,
+				Path:    target,
+				Outcome: outcome,
+			})
 		}
 	}
 	return res, nil
 }
 
-func applyRule(targetPath string, incoming []byte, fileMode, mode, backup string, lockEntry LockEntry, opts SyncOptions) (string, bool, error) {
+func applyRule(targetPath string, incoming []byte, fileMode string, opts SyncOptions) (string, error) {
 	current, err := os.ReadFile(targetPath)
 	exists := err == nil
 	if err != nil && !os.IsNotExist(err) {
-		return "", false, err
+		return "", err
 	}
 
 	incomingHash := shared.SHA256Hex(incoming)
 	if exists && shared.SHA256Hex(current) == incomingHash {
-		return outcomeUnchanged, false, nil
+		return outcomeUnchanged, nil
 	}
 
-	switch mode {
-	case MergeOverwrite:
-		return writeTarget(targetPath, incoming, current, exists, fileMode, backup, opts)
-	case MergeKeepLocal:
-		if exists {
-			return outcomeSkipped, false, nil
-		}
-		return writeTarget(targetPath, incoming, nil, false, fileMode, backup, opts)
-	case MergeThreeWay:
-		if !exists {
-			return writeTarget(targetPath, incoming, nil, false, fileMode, backup, opts)
-		}
-		appliedHash := lockEntry.AppliedHash
-		if appliedHash == "" {
-			if shared.SHA256Hex(current) == incomingHash {
-				return "unchanged", false, nil
-			}
-			return "", false, fmt.Errorf("%w: %s has local content but no lock state", ErrSyncConflict, targetPath)
-		}
-		currentHash := shared.SHA256Hex(current)
-		if currentHash == appliedHash {
-			return writeTarget(targetPath, incoming, current, true, fileMode, backup, opts)
-		}
-		if incomingHash == appliedHash {
-			return outcomeSkipped, false, nil
-		}
-		return "", false, fmt.Errorf("%w: %s local and source changed", ErrSyncConflict, targetPath)
-	default:
-		return "", false, fmt.Errorf("unsupported merge mode: %s", mode)
+	backup := shared.BackupTimestamp
+	if opts.Overwrite {
+		backup = shared.BackupNone
 	}
+
+	return writeTarget(targetPath, incoming, current, exists, fileMode, backup, opts)
 }
 
-func writeTarget(path string, incoming, current []byte, existed bool, fileMode, backup string, opts SyncOptions) (string, bool, error) {
+func writeTarget(path string, incoming, current []byte, existed bool, fileMode, backup string, opts SyncOptions) (string, error) {
 	if opts.DryRun {
 		if existed {
-			return outcomeUpdated, false, nil
+			return outcomeUpdated, nil
 		}
-		return outcomeCreated, false, nil
+		return outcomeCreated, nil
 	}
 	if existed {
 		if err := shared.BackupFile(path, current, backup, opts.Now()); err != nil {
-			return "", false, err
+			return "", err
 		}
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", false, err
+		return "", err
 	}
 	perm, err := resolveOutputMode(fileMode)
 	if err != nil {
-		return "", false, err
+		return "", err
 	}
 	if err := os.WriteFile(path, incoming, perm); err != nil {
-		return "", false, err
+		return "", err
 	}
 	if existed {
-		return outcomeUpdated, true, nil
+		return outcomeUpdated, nil
 	}
-	return outcomeCreated, true, nil
+	return outcomeCreated, nil
 }
 
 func resolveOutputMode(v string) (os.FileMode, error) {
@@ -211,26 +166,6 @@ func download(src Source) ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func chooseMergeMode(rule, override string) string {
-	if override != "" {
-		return override
-	}
-	if rule == "" {
-		return MergeOverwrite
-	}
-	return rule
-}
-
-func chooseBackup(rule, override string) string {
-	if override != "" {
-		return override
-	}
-	if rule == "" {
-		return shared.BackupNone
-	}
-	return rule
-}
-
 func verifyChecksum(content []byte, checksum string) error {
 	if checksum == "" {
 		return nil
@@ -260,17 +195,5 @@ func recordOutcome(res *SyncResult, outcome string) {
 		res.Updated++
 	case outcomeUnchanged:
 		res.Unchanged++
-	case outcomeSkipped:
-		res.Skipped++
-	}
-}
-
-func newLockEntry(sourceURL string, incoming []byte, now func() time.Time) LockEntry {
-	hash := shared.SHA256Hex(incoming)
-	return LockEntry{
-		SourceURL:   sourceURL,
-		AppliedHash: hash,
-		SourceHash:  hash,
-		UpdatedAt:   now().UTC().Format(time.RFC3339),
 	}
 }

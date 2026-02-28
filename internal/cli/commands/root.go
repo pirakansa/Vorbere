@@ -31,7 +31,6 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(newRunCmd(ctx))
 	cmd.AddCommand(newSyncCmd(ctx))
 	cmd.AddCommand(newTasksCmd(ctx))
-	cmd.AddCommand(newPlanCmd(ctx))
 	cmd.AddCommand(newInitCmd())
 
 	return cmd
@@ -49,9 +48,6 @@ func mapExitCode(err error) int {
 	var codeErr *exitCodeError
 	if errors.As(err, &codeErr) {
 		return codeErr.code
-	}
-	if errors.Is(err, manifest.ErrSyncConflict) {
-		return shared.ExitSyncConflict
 	}
 	return 1
 }

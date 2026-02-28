@@ -47,19 +47,19 @@ without knowing repository-specific tools.
 Preview changes first:
 
 ```bash
-vorbere plan
+vorbere sync --dry-run
 ```
 
-Apply sync with backup:
+Apply sync (timestamp backup is default):
 
 ```bash
-vorbere sync --backup timestamp
+vorbere sync
 ```
 
 Notes:
 
-- Default sync behavior is overwrite.
-- `--mode` can switch behavior to `three_way` or `keep_local` when needed.
+- Existing files are backed up as timestamped `.bak` files before replacement.
+- Use `--overwrite` to skip backup creation.
 
 ## 4. Run common tasks
 
@@ -86,6 +86,6 @@ Example pattern:
 ## 6. Operational recommendations
 
 - Use the default overwrite flow for managed bootstrap files.
-- Use `--mode keep_local` for local-only files when necessary.
-- Use `--backup timestamp` before large updates.
+- Use default sync to keep rollback backups (`.bak`) for large updates.
+- Use `--overwrite` when you intentionally want direct replacement.
 - Run `vorbere tasks list` after updating `vorbere.yaml`.
