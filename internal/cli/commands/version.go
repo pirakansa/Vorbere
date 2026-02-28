@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"runtime/debug"
+	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -25,12 +26,19 @@ func newVersionCmd(version string) *cobra.Command {
 
 func resolveVersion(version string) string {
 	if version != "" && version != defaultVersionValue {
-		return version
+		return normalizeVersion(version)
 	}
 
 	info, ok := readBuildInfo()
 	if ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
-		return info.Main.Version
+		return normalizeVersion(info.Main.Version)
 	}
 	return defaultVersionValue
+}
+
+func normalizeVersion(version string) string {
+	if strings.HasPrefix(version, "v") {
+		return version
+	}
+	return "v" + version
 }

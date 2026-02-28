@@ -229,6 +229,38 @@ func TestResolveVersionPrefersProvidedVersion(t *testing.T) {
 	}
 }
 
+func TestResolveVersionAddsVPrefixWhenProvidedVersionHasNoPrefix(t *testing.T) {
+	orig := readBuildInfo
+	t.Cleanup(func() { readBuildInfo = orig })
+	readBuildInfo = func() (info *debug.BuildInfo, ok bool) {
+		return &debug.BuildInfo{
+			Main: debug.Module{
+				Version: "v9.9.9",
+			},
+		}, true
+	}
+
+	if got := resolveVersion("0.3.0"); got != "v0.3.0" {
+		t.Fatalf("expected normalized version, got %q", got)
+	}
+}
+
+func TestResolveVersionAddsVPrefixForBuildInfoVersion(t *testing.T) {
+	orig := readBuildInfo
+	t.Cleanup(func() { readBuildInfo = orig })
+	readBuildInfo = func() (info *debug.BuildInfo, ok bool) {
+		return &debug.BuildInfo{
+			Main: debug.Module{
+				Version: "0.2.0",
+			},
+		}, true
+	}
+
+	if got := resolveVersion(defaultVersionValue); got != "v0.2.0" {
+		t.Fatalf("expected normalized build info version, got %q", got)
+	}
+}
+
 func TestResolveVersionFallsBackToDefaultWhenBuildInfoUnavailable(t *testing.T) {
 	orig := readBuildInfo
 	t.Cleanup(func() { readBuildInfo = orig })
