@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 
@@ -193,6 +194,50 @@ func TestVersionCommandPrintsVersion(t *testing.T) {
 	}
 	if out.String() != "v0.1.0\n" {
 		t.Fatalf("expected version output %q, got %q", "v0.1.0\n", out.String())
+	}
+}
+
+func TestResolveVersionUsesBuildInfoWhenDefaultVersion(t *testing.T) {
+	orig := readBuildInfo
+	t.Cleanup(func() { readBuildInfo = orig })
+	readBuildInfo = func() (info *debug.BuildInfo, ok bool) {
+		return &debug.BuildInfo{
+			Main: debug.Module{
+				Version: "v0.2.0",
+			},
+		}, true
+	}
+
+	if got := resolveVersion(defaultVersionValue); got != "v0.2.0" {
+		t.Fatalf("expected build info version, got %q", got)
+	}
+}
+
+func TestResolveVersionPrefersProvidedVersion(t *testing.T) {
+	orig := readBuildInfo
+	t.Cleanup(func() { readBuildInfo = orig })
+	readBuildInfo = func() (info *debug.BuildInfo, ok bool) {
+		return &debug.BuildInfo{
+			Main: debug.Module{
+				Version: "v9.9.9",
+			},
+		}, true
+	}
+
+	if got := resolveVersion("v0.3.0"); got != "v0.3.0" {
+		t.Fatalf("expected provided version, got %q", got)
+	}
+}
+
+func TestResolveVersionFallsBackToDefaultWhenBuildInfoUnavailable(t *testing.T) {
+	orig := readBuildInfo
+	t.Cleanup(func() { readBuildInfo = orig })
+	readBuildInfo = func() (info *debug.BuildInfo, ok bool) {
+		return nil, false
+	}
+
+	if got := resolveVersion(defaultVersionValue); got != defaultVersionValue {
+		t.Fatalf("expected default version %q, got %q", defaultVersionValue, got)
 	}
 }
 
