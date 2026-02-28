@@ -162,6 +162,26 @@ repositories:
 	}
 }
 
+func TestLoadTaskConfigRejectsLegacyDigestField(t *testing.T) {
+	temp := t.TempDir()
+	configPath := filepath.Join(temp, "vorbere.yaml")
+	content := `version: 1
+repositories:
+  - url: https://example.com
+    files:
+      - file_name: a.txt
+        out_dir: .
+        digest: blake3:deadbeef
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	if _, err := LoadTaskConfig(configPath); err == nil {
+		t.Fatalf("expected unknown field error for legacy digest")
+	}
+}
+
 func TestIsRemoteConfigLocation(t *testing.T) {
 	if !IsRemoteConfigLocation("https://example.com/vorbere.yaml") {
 		t.Fatalf("expected https URL to be remote config")

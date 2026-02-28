@@ -339,6 +339,67 @@ func TestSyncTarGzipExtractFile(t *testing.T) {
 	}
 }
 
+func TestSyncRejectsOutputDigestForMultiOutputExtraction(t *testing.T) {
+	artifact := mustBuildTarGzip(t, map[string]string{
+		"pkg/bin/tool":    "tool-binary",
+		"pkg/lib/help.md": "help",
+	})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(artifact)
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	cfg := &SyncConfig{
+		Version: "v1",
+		Sources: map[string]Source{"src": {URL: server.URL}},
+		Files: []FileRule{
+			{
+				Source:           "src",
+				Path:             "lib/node",
+				Encoding:         EncodingTarGzip,
+				Extract:          "pkg",
+				OutputChecksum:   checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex([]byte("tool-binary"))),
+				DownloadChecksum: checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex(artifact)),
+			},
+		},
+	}
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
+		t.Fatalf("expected output digest error for multi-output extraction")
+	}
+}
+
+func TestSyncSupportsDownloadAndOutputDigestTogetherForRawFile(t *testing.T) {
+	content := []byte("plain-content")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(content)
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	cfg := &SyncConfig{
+		Version: "v1",
+		Sources: map[string]Source{"src": {URL: server.URL}},
+		Files: []FileRule{
+			{
+				Source:           "src",
+				Path:             "plain.txt",
+				DownloadChecksum: checksumSpec(DigestAlgorithmSHA256, shared.SHA256Hex(content)),
+				OutputChecksum:   checksumSpec(DigestAlgorithmMD5, shared.MD5Hex(content)),
+			},
+		},
+	}
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
+
+	cfg.Files[0].Path = "plain-mismatch.txt"
+	cfg.Files[0].OutputChecksum = checksumSpec(DigestAlgorithmMD5, shared.MD5Hex([]byte("bad")))
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
+		t.Fatalf("expected output checksum mismatch")
+	}
+}
+
 func mustEncodeZstd(t *testing.T, content []byte) []byte {
 	t.Helper()
 	encoder, err := zstd.NewWriter(nil)
