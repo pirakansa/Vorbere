@@ -41,10 +41,11 @@ func verifyChecksum(content []byte, checksum string) error {
 	if algorithm == "" {
 		return nil
 	}
-	if algorithm != DigestAlgorithmBLAKE3 {
-		return fmt.Errorf("unsupported checksum algorithm %q", algorithm)
+	computed, err := computeDigest(content, algorithm)
+	if err != nil {
+		return err
 	}
-	if shared.BLAKE3Hex(content) != digest {
+	if computed != digest {
 		return errors.New("checksum mismatch")
 	}
 	return nil
@@ -63,4 +64,17 @@ func parseChecksumSpec(value string) (string, string, error) {
 		return "", "", fmt.Errorf("invalid checksum hex %q", value)
 	}
 	return algorithm, digest, nil
+}
+
+func computeDigest(content []byte, algorithm string) (string, error) {
+	switch algorithm {
+	case DigestAlgorithmBLAKE3:
+		return shared.BLAKE3Hex(content), nil
+	case DigestAlgorithmSHA256:
+		return shared.SHA256Hex(content), nil
+	case DigestAlgorithmMD5:
+		return shared.MD5Hex(content), nil
+	default:
+		return "", fmt.Errorf("unsupported checksum algorithm %q", algorithm)
+	}
 }

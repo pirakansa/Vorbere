@@ -16,4 +16,6 @@ const (
 	EncodingTarGzip       = pkgmanifest.EncodingTarGzip
 	EncodingTarXz         = pkgmanifest.EncodingTarXz
 	DigestAlgorithmBLAKE3 = pkgmanifest.DigestAlgorithmBLAKE3
+	DigestAlgorithmSHA256 = pkgmanifest.DigestAlgorithmSHA256
+	DigestAlgorithmMD5    = pkgmanifest.DigestAlgorithmMD5
 )

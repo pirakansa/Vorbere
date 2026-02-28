@@ -58,14 +58,15 @@ Supported `repositories[].files[]` fields:
 - `out_dir` (required): destination directory (`$ENV` variables are expanded)
 - `rename` (optional): output filename override
 - `mode` (optional): octal output file mode string (example: `"0755"`)
-- `digest` (optional): BLAKE3 hex digest of final output (post-decode/extract)
-- `artifact_digest` (optional): BLAKE3 hex digest of the downloaded artifact before decode/extract
+- `digest` (optional): checksum of final output (post-decode/extract) in `<algorithm>:<hex>` format
+- `artifact_digest` (optional): checksum of downloaded artifact before decode/extract in `<algorithm>:<hex>` format
 - `encoding` (optional): `zstd` | `tar+gzip` | `tar+xz`
 - `extract` (optional): archive path to extract; omit or `"."` to extract entire archive into `out_dir`
 
 Notes:
 
-- `digest` and `artifact_digest` must use `blake3:<hex>` format.
+- `digest` and `artifact_digest` must use `<algorithm>:<hex>` format.
+- Supported algorithms: `blake3`, `sha256`, `md5`.
 - Processing flow is `artifact_digest` verify -> decode/extract -> `digest` verify.
 - `digest` works only when decode/extract resolves to a single output file. If extraction resolves to multiple files, sync fails when `digest` is set.
 - For archive full extraction (`extract` omitted or `"."`), `digest` is not supported.

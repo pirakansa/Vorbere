@@ -118,3 +118,35 @@ func TestBuildSyncConfigRejectsDigestWithoutPrefix(t *testing.T) {
 		t.Fatalf("expected digest format validation error")
 	}
 }
+
+func TestBuildSyncConfigAcceptsSHA256AndMD5Digests(t *testing.T) {
+	cfg := &TaskConfig{
+		Version: 3,
+		Repositories: []Repository{{
+			URL: "https://example.com/base/",
+			Files: []RepositoryFile{
+				{
+					FileName: "sha256.txt",
+					OutDir:   ".",
+					Digest:   "sha256:abcdef",
+				},
+				{
+					FileName: "md5.txt",
+					OutDir:   ".",
+					Digest:   "md5:abcdef",
+				},
+			},
+		}},
+	}
+
+	resolved, err := BuildSyncConfig(cfg)
+	if err != nil {
+		t.Fatalf("BuildSyncConfig returned error: %v", err)
+	}
+	if got := resolved.Files[0].Checksum; got != "sha256:abcdef" {
+		t.Fatalf("unexpected sha256 checksum: %s", got)
+	}
+	if got := resolved.Files[1].Checksum; got != "md5:abcdef" {
+		t.Fatalf("unexpected md5 checksum: %s", got)
+	}
+}

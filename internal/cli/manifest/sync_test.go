@@ -136,26 +136,40 @@ func TestSyncChecksumValidation(t *testing.T) {
 	defer server.Close()
 
 	temp := t.TempDir()
-	cfg := &SyncConfig{
-		Version: "v3",
-		Sources: map[string]Source{"src": {URL: server.URL}},
-		Files: []FileRule{
-			{
-				Source:   "src",
-				Path:     "checksum.txt",
-				Checksum: checksumSpec(shared.BLAKE3Hex([]byte("content"))),
-			},
-		},
+	cases := []struct {
+		name      string
+		algorithm string
+		digest    string
+	}{
+		{name: "blake3", algorithm: DigestAlgorithmBLAKE3, digest: shared.BLAKE3Hex([]byte("content"))},
+		{name: "sha256", algorithm: DigestAlgorithmSHA256, digest: shared.SHA256Hex([]byte("content"))},
+		{name: "md5", algorithm: DigestAlgorithmMD5, digest: shared.MD5Hex([]byte("content"))},
 	}
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &SyncConfig{
+				Version: "v3",
+				Sources: map[string]Source{"src": {URL: server.URL}},
+				Files: []FileRule{
+					{
+						Source:   "src",
+						Path:     "checksum-" + tc.name + ".txt",
+						Checksum: checksumSpec(tc.algorithm, tc.digest),
+					},
+				},
+			}
 
-	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err != nil {
-		t.Fatalf("sync with valid checksum failed: %v", err)
-	}
+			if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err != nil {
+				t.Fatalf("sync with valid checksum failed: %v", err)
+			}
 
-	cfg.Files[0].Path = "checksum-mismatch.txt"
-	cfg.Files[0].Checksum = checksumSpec(shared.BLAKE3Hex([]byte("different")))
-	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
-		t.Fatalf("expected checksum mismatch error")
+			cfg.Files[0].Path = "checksum-" + tc.name + "-mismatch.txt"
+			cfg.Files[0].Checksum = checksumSpec(tc.algorithm, tc.digest+"00")
+			if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
+				t.Fatalf("expected checksum mismatch error")
+			}
+		})
 	}
 }
 
@@ -230,8 +244,8 @@ func TestSyncTwoPhaseDigestValidationForZstd(t *testing.T) {
 				Source:           "src",
 				Path:             "bin/tool",
 				Encoding:         EncodingZstd,
-				ArtifactChecksum: checksumSpec(shared.BLAKE3Hex(artifact)),
-				Checksum:         checksumSpec(shared.BLAKE3Hex(payload)),
+				ArtifactChecksum: checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex(artifact)),
+				Checksum:         checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex(payload)),
 				Mode:             "0755",
 			},
 		},
@@ -249,14 +263,14 @@ func TestSyncTwoPhaseDigestValidationForZstd(t *testing.T) {
 	}
 
 	cfg.Files[0].Path = "bin/tool-2"
-	cfg.Files[0].ArtifactChecksum = checksumSpec(shared.BLAKE3Hex([]byte("bad")))
+	cfg.Files[0].ArtifactChecksum = checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex([]byte("bad")))
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
 		t.Fatalf("expected artifact checksum mismatch")
 	}
 
 	cfg.Files[0].Path = "bin/tool-3"
-	cfg.Files[0].ArtifactChecksum = checksumSpec(shared.BLAKE3Hex(artifact))
-	cfg.Files[0].Checksum = checksumSpec(shared.BLAKE3Hex([]byte("bad")))
+	cfg.Files[0].ArtifactChecksum = checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex(artifact))
+	cfg.Files[0].Checksum = checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex([]byte("bad")))
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
 		t.Fatalf("expected final checksum mismatch")
 	}
@@ -282,8 +296,8 @@ func TestSyncTarGzipExtractFile(t *testing.T) {
 				Path:             "bin/tool",
 				Encoding:         EncodingTarGzip,
 				Extract:          "pkg/bin/tool",
-				ArtifactChecksum: checksumSpec(shared.BLAKE3Hex(artifact)),
-				Checksum:         checksumSpec(shared.BLAKE3Hex([]byte("tool-binary"))),
+				ArtifactChecksum: checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex(artifact)),
+				Checksum:         checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex([]byte("tool-binary"))),
 				Mode:             "0755",
 			},
 		},
@@ -338,6 +352,6 @@ func mustBuildTarGzip(t *testing.T, files map[string]string) []byte {
 	return buf.Bytes()
 }
 
-func checksumSpec(hexDigest string) string {
-	return DigestAlgorithmBLAKE3 + ":" + hexDigest
+func checksumSpec(algorithm, hexDigest string) string {
+	return algorithm + ":" + hexDigest
 }

@@ -18,6 +18,8 @@ const (
 	EncodingTarGzip          = "tar+gzip"
 	EncodingTarXz            = "tar+xz"
 	DigestAlgorithmBLAKE3    = "blake3"
+	DigestAlgorithmSHA256    = "sha256"
+	DigestAlgorithmMD5       = "md5"
 )
 
 func NormalizeTaskConfig(cfg *TaskConfig) {
@@ -166,15 +168,29 @@ func normalizeDigest(value string) (string, error) {
 	}
 	algorithm, digest, ok := strings.Cut(raw, ":")
 	if !ok || strings.TrimSpace(algorithm) == "" || strings.TrimSpace(digest) == "" {
-		return "", fmt.Errorf("must be in format %q", DigestAlgorithmBLAKE3+":<hex>")
+		return "", fmt.Errorf(
+			"must be in format %q, %q, or %q",
+			DigestAlgorithmBLAKE3+":<hex>",
+			DigestAlgorithmSHA256+":<hex>",
+			DigestAlgorithmMD5+":<hex>",
+		)
 	}
-	if algorithm != DigestAlgorithmBLAKE3 {
+	if !isSupportedDigestAlgorithm(algorithm) {
 		return "", fmt.Errorf("unsupported algorithm %q", algorithm)
 	}
 	if _, err := hex.DecodeString(digest); err != nil {
 		return "", errors.New("must contain lowercase hex digest")
 	}
 	return algorithm + ":" + digest, nil
+}
+
+func isSupportedDigestAlgorithm(value string) bool {
+	switch value {
+	case DigestAlgorithmBLAKE3, DigestAlgorithmSHA256, DigestAlgorithmMD5:
+		return true
+	default:
+		return false
+	}
 }
 
 func validateRepositoryFile(file RepositoryFile, repoIndex, fileIndex int) (string, string, error) {
