@@ -24,7 +24,7 @@ repositories:
     files:
       - file_name: AGENTS.md
         out_dir: .
-        digest: <optional blake3:<hex>>
+        digest: <optional <algorithm>:<hex>>
         rename: AGENTS.md
         mode: "0644"
       - file_name: templates/codex/auth.json
