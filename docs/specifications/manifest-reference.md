@@ -24,7 +24,7 @@ repositories:
     files:
       - file_name: AGENTS.md
         out_dir: .
-        digest: <optional hex>
+        digest: <optional blake3:<hex>>
         rename: AGENTS.md
         mode: "0644"
       - file_name: templates/codex/auth.json
@@ -65,7 +65,7 @@ Supported `repositories[].files[]` fields:
 
 Notes:
 
-- `digest` and `artifact_digest` are plain BLAKE3 hex strings (no `algo:` prefix).
+- `digest` and `artifact_digest` must use `blake3:<hex>` format.
 - Processing flow is `artifact_digest` verify -> decode/extract -> `digest` verify.
 - `digest` works only when decode/extract resolves to a single output file. If extraction resolves to multiple files, sync fails when `digest` is set.
 - For archive full extraction (`extract` omitted or `"."`), `digest` is not supported.
@@ -106,8 +106,8 @@ repositories:
     files:
       - file_name: tool-linux-amd64.zst
         encoding: zstd
-        artifact_digest: <blake3-of-downloaded-zst>
-        digest: <blake3-of-decoded-tool>
+        artifact_digest: blake3:<hex-of-downloaded-zst>
+        digest: blake3:<hex-of-decoded-tool>
         out_dir: $HOME/.local/bin
         rename: tool
         mode: "0755"

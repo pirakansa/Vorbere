@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -33,12 +34,33 @@ func verifyChecksum(content []byte, checksum string) error {
 	if checksum == "" {
 		return nil
 	}
-	value := strings.TrimSpace(strings.ToLower(checksum))
-	if value == "" {
+	algorithm, digest, err := parseChecksumSpec(checksum)
+	if err != nil {
+		return err
+	}
+	if algorithm == "" {
 		return nil
 	}
-	if shared.BLAKE3Hex(content) != value {
+	if algorithm != DigestAlgorithmBLAKE3 {
+		return fmt.Errorf("unsupported checksum algorithm %q", algorithm)
+	}
+	if shared.BLAKE3Hex(content) != digest {
 		return errors.New("checksum mismatch")
 	}
 	return nil
+}
+
+func parseChecksumSpec(value string) (string, string, error) {
+	raw := strings.TrimSpace(strings.ToLower(value))
+	if raw == "" {
+		return "", "", nil
+	}
+	algorithm, digest, ok := strings.Cut(raw, ":")
+	if !ok || strings.TrimSpace(algorithm) == "" || strings.TrimSpace(digest) == "" {
+		return "", "", fmt.Errorf("invalid checksum format %q", value)
+	}
+	if _, err := hex.DecodeString(digest); err != nil {
+		return "", "", fmt.Errorf("invalid checksum hex %q", value)
+	}
+	return algorithm, digest, nil
 }

@@ -9,6 +9,7 @@ import (
 
 func TestResolveSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 	temp := t.TempDir()
+	const digest = "blake3:abcdef"
 	cfg := &TaskConfig{
 		Version: 3,
 		Repositories: []Repository{
@@ -19,7 +20,7 @@ func TestResolveSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 						FileName: "a.txt",
 						OutDir:   "dest",
 						Rename:   "renamed.txt",
-						Digest:   "abcdef",
+						Digest:   digest,
 					},
 				},
 			},
@@ -37,7 +38,7 @@ func TestResolveSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 	if rule.Path != filepath.Join("dest", "renamed.txt") {
 		t.Fatalf("unexpected rule path: %s", rule.Path)
 	}
-	if rule.Checksum != "abcdef" {
+	if rule.Checksum != digest {
 		t.Fatalf("unexpected checksum: %s", rule.Checksum)
 	}
 	src := resolved.Sources[rule.Source]

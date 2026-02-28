@@ -6,8 +6,8 @@ repositories:
     files:
       - file_name: tool-linux-amd64.zst
         encoding: zstd
-        artifact_digest: <blake3-of-downloaded-zst>
-        digest: <blake3-of-decoded-tool>
+        artifact_digest: blake3:<hex-of-downloaded-zst>
+        digest: blake3:<hex-of-decoded-tool>
         out_dir: $HOME/.local/bin
         rename: tool
         mode: "0755"

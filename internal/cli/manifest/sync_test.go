@@ -143,7 +143,7 @@ func TestSyncChecksumValidation(t *testing.T) {
 			{
 				Source:   "src",
 				Path:     "checksum.txt",
-				Checksum: shared.BLAKE3Hex([]byte("content")),
+				Checksum: checksumSpec(shared.BLAKE3Hex([]byte("content"))),
 			},
 		},
 	}
@@ -153,7 +153,7 @@ func TestSyncChecksumValidation(t *testing.T) {
 	}
 
 	cfg.Files[0].Path = "checksum-mismatch.txt"
-	cfg.Files[0].Checksum = shared.BLAKE3Hex([]byte("different"))
+	cfg.Files[0].Checksum = checksumSpec(shared.BLAKE3Hex([]byte("different")))
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
 		t.Fatalf("expected checksum mismatch error")
 	}
@@ -230,8 +230,8 @@ func TestSyncTwoPhaseDigestValidationForZstd(t *testing.T) {
 				Source:           "src",
 				Path:             "bin/tool",
 				Encoding:         EncodingZstd,
-				ArtifactChecksum: shared.BLAKE3Hex(artifact),
-				Checksum:         shared.BLAKE3Hex(payload),
+				ArtifactChecksum: checksumSpec(shared.BLAKE3Hex(artifact)),
+				Checksum:         checksumSpec(shared.BLAKE3Hex(payload)),
 				Mode:             "0755",
 			},
 		},
@@ -249,14 +249,14 @@ func TestSyncTwoPhaseDigestValidationForZstd(t *testing.T) {
 	}
 
 	cfg.Files[0].Path = "bin/tool-2"
-	cfg.Files[0].ArtifactChecksum = shared.BLAKE3Hex([]byte("bad"))
+	cfg.Files[0].ArtifactChecksum = checksumSpec(shared.BLAKE3Hex([]byte("bad")))
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
 		t.Fatalf("expected artifact checksum mismatch")
 	}
 
 	cfg.Files[0].Path = "bin/tool-3"
-	cfg.Files[0].ArtifactChecksum = shared.BLAKE3Hex(artifact)
-	cfg.Files[0].Checksum = shared.BLAKE3Hex([]byte("bad"))
+	cfg.Files[0].ArtifactChecksum = checksumSpec(shared.BLAKE3Hex(artifact))
+	cfg.Files[0].Checksum = checksumSpec(shared.BLAKE3Hex([]byte("bad")))
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
 		t.Fatalf("expected final checksum mismatch")
 	}
@@ -282,8 +282,8 @@ func TestSyncTarGzipExtractFile(t *testing.T) {
 				Path:             "bin/tool",
 				Encoding:         EncodingTarGzip,
 				Extract:          "pkg/bin/tool",
-				ArtifactChecksum: shared.BLAKE3Hex(artifact),
-				Checksum:         shared.BLAKE3Hex([]byte("tool-binary")),
+				ArtifactChecksum: checksumSpec(shared.BLAKE3Hex(artifact)),
+				Checksum:         checksumSpec(shared.BLAKE3Hex([]byte("tool-binary"))),
 				Mode:             "0755",
 			},
 		},
@@ -336,4 +336,8 @@ func mustBuildTarGzip(t *testing.T, files map[string]string) []byte {
 		t.Fatalf("gzipWriter.Close: %v", err)
 	}
 	return buf.Bytes()
+}
+
+func checksumSpec(hexDigest string) string {
+	return DigestAlgorithmBLAKE3 + ":" + hexDigest
 }

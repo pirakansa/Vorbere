@@ -1,6 +1,7 @@
 package manifest
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/url"
@@ -16,6 +17,7 @@ const (
 	EncodingZstd             = "zstd"
 	EncodingTarGzip          = "tar+gzip"
 	EncodingTarXz            = "tar+xz"
+	DigestAlgorithmBLAKE3    = "blake3"
 )
 
 func NormalizeTaskConfig(cfg *TaskConfig) {
@@ -128,12 +130,22 @@ func buildSyncEntry(repo Repository, file RepositoryFile, repoIndex, fileIndex i
 		Source:           sourceID,
 		Path:             targetPath,
 		Mode:             file.Mode,
-		Checksum:         normalizeDigest(file.Digest),
-		ArtifactChecksum: normalizeDigest(file.ArtifactDigest),
+		Checksum:         "",
+		ArtifactChecksum: "",
 		Encoding:         encoding,
 		Extract:          extract,
 		ExpandArchive:    expandArchive,
 	}
+	checksum, err := normalizeDigest(file.Digest)
+	if err != nil {
+		return "", Source{}, FileRule{}, fmt.Errorf("repositories[%d].files[%d].digest %w", repoIndex, fileIndex, err)
+	}
+	artifactChecksum, err := normalizeDigest(file.ArtifactDigest)
+	if err != nil {
+		return "", Source{}, FileRule{}, fmt.Errorf("repositories[%d].files[%d].artifact_digest %w", repoIndex, fileIndex, err)
+	}
+	rule.Checksum = checksum
+	rule.ArtifactChecksum = artifactChecksum
 	if rule.ExpandArchive {
 		rule.Mode = ""
 	}
@@ -147,8 +159,22 @@ func buildSyncEntry(repo Repository, file RepositoryFile, repoIndex, fileIndex i
 	return sourceID, source, rule, nil
 }
 
-func normalizeDigest(value string) string {
-	return strings.TrimSpace(strings.ToLower(value))
+func normalizeDigest(value string) (string, error) {
+	raw := strings.TrimSpace(strings.ToLower(value))
+	if raw == "" {
+		return "", nil
+	}
+	algorithm, digest, ok := strings.Cut(raw, ":")
+	if !ok || strings.TrimSpace(algorithm) == "" || strings.TrimSpace(digest) == "" {
+		return "", fmt.Errorf("must be in format %q", DigestAlgorithmBLAKE3+":<hex>")
+	}
+	if algorithm != DigestAlgorithmBLAKE3 {
+		return "", fmt.Errorf("unsupported algorithm %q", algorithm)
+	}
+	if _, err := hex.DecodeString(digest); err != nil {
+		return "", errors.New("must contain lowercase hex digest")
+	}
+	return algorithm + ":" + digest, nil
 }
 
 func validateRepositoryFile(file RepositoryFile, repoIndex, fileIndex int) (string, string, error) {

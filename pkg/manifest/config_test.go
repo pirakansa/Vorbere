@@ -6,6 +6,7 @@ import (
 )
 
 func TestBuildSyncConfigBuildsRulesFromRepositories(t *testing.T) {
+	const digest = "blake3:abcdef"
 	cfg := &TaskConfig{
 		Version: 3,
 		Repositories: []Repository{{
@@ -14,7 +15,7 @@ func TestBuildSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 				FileName: "a.txt",
 				OutDir:   "dest",
 				Rename:   "renamed.txt",
-				Digest:   "abcdef",
+				Digest:   digest,
 			}},
 		}},
 	}
@@ -30,7 +31,7 @@ func TestBuildSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 	if rule.Path != filepath.Join("dest", "renamed.txt") {
 		t.Fatalf("unexpected rule path: %s", rule.Path)
 	}
-	if rule.Checksum != "abcdef" {
+	if rule.Checksum != digest {
 		t.Fatalf("unexpected checksum: %s", rule.Checksum)
 	}
 	src := resolved.Sources[rule.Source]
@@ -40,14 +41,16 @@ func TestBuildSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 }
 
 func TestBuildSyncConfigArchiveExtractRule(t *testing.T) {
+	const artifactDigest = "blake3:deadbeef"
+	const digest = "blake3:cafebabe"
 	cfg := &TaskConfig{
 		Version: 3,
 		Repositories: []Repository{{
 			URL: "https://example.com/base/",
 			Files: []RepositoryFile{{
 				FileName:       "tool.tar.gz",
-				ArtifactDigest: "artifact",
-				Digest:         "final",
+				ArtifactDigest: artifactDigest,
+				Digest:         digest,
 				Encoding:       "tar+gzip",
 				Extract:        "bin/tool",
 				OutDir:         "/tmp/bin",
@@ -62,10 +65,10 @@ func TestBuildSyncConfigArchiveExtractRule(t *testing.T) {
 		t.Fatalf("BuildSyncConfig returned error: %v", err)
 	}
 	rule := resolved.Files[0]
-	if rule.ArtifactChecksum != "artifact" {
+	if rule.ArtifactChecksum != artifactDigest {
 		t.Fatalf("unexpected artifact checksum: %s", rule.ArtifactChecksum)
 	}
-	if rule.Checksum != "final" {
+	if rule.Checksum != digest {
 		t.Fatalf("unexpected checksum: %s", rule.Checksum)
 	}
 	if rule.Encoding != EncodingTarGzip {
@@ -88,12 +91,30 @@ func TestBuildSyncConfigRejectsDigestOnArchiveFullExtraction(t *testing.T) {
 				FileName: "tool.tar.xz",
 				Encoding: "tar+xz",
 				OutDir:   "/tmp/lib",
-				Digest:   "not-allowed",
+				Digest:   "blake3:deadbeef",
 			}},
 		}},
 	}
 
 	if _, err := BuildSyncConfig(cfg); err == nil {
 		t.Fatalf("expected digest validation error")
+	}
+}
+
+func TestBuildSyncConfigRejectsDigestWithoutPrefix(t *testing.T) {
+	cfg := &TaskConfig{
+		Version: 3,
+		Repositories: []Repository{{
+			URL: "https://example.com/base/",
+			Files: []RepositoryFile{{
+				FileName: "a.txt",
+				OutDir:   ".",
+				Digest:   "abcdef",
+			}},
+		}},
+	}
+
+	if _, err := BuildSyncConfig(cfg); err == nil {
+		t.Fatalf("expected digest format validation error")
 	}
 }
