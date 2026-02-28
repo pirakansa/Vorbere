@@ -1,0 +1,93 @@
+name: 'vorbere'
+description: 'Set up vorbere in GitHub Actions'
+author: 'pirakansa'
+
+branding:
+  icon: 'terminal'
+  color: 'blue'
+
+inputs:
+  version:
+    description: 'Vorbere version to use (tag like v0.1.0 or latest)'
+    required: false
+    default: 'latest'
+
+outputs:
+  version:
+    description: 'Resolved Vorbere version used in this action'
+    value: ${{ steps.version.outputs.version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Detect platform
+      id: platform
+      shell: bash
+      run: |
+        os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+        arch="$(uname -m)"
+
+        case "$os" in
+          linux) ;;
+          darwin) ;;
+          mingw*|msys*|cygwin*) os="win" ;;
+          *)
+            echo "Unsupported OS: $os" >&2
+            exit 1
+            ;;
+        esac
+
+        case "$arch" in
+          x86_64|amd64) arch="amd64" ;;
+          aarch64|arm64) arch="arm64" ;;
+          armv7*|armv6*|arm) arch="arm" ;;
+          *)
+            echo "Unsupported architecture: $arch" >&2
+            exit 1
+            ;;
+        esac
+
+        case "${os}-${arch}" in
+          linux-amd64|linux-arm|linux-arm64|darwin-amd64|darwin-arm64|win-amd64) ;;
+          *)
+            echo "Unsupported target: ${os}-${arch}" >&2
+            exit 1
+            ;;
+        esac
+
+        echo "os=${os}" >> "$GITHUB_OUTPUT"
+        echo "arch=${arch}" >> "$GITHUB_OUTPUT"
+
+    - name: Resolve version
+      id: version
+      shell: bash
+      run: |
+        version='${{ inputs.version }}'
+        if [ "$version" = 'latest' ]; then
+          version="$(curl -fsSL https://api.github.com/repos/pirakansa/vorbere/releases/latest | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')"
+        fi
+
+        if [ -z "$version" ]; then
+          echo 'Failed to resolve vorbere version' >&2
+          exit 1
+        fi
+
+        echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+    - name: Download vorbere
+      shell: bash
+      run: |
+        archive="vorbere_${{ steps.platform.outputs.os }}-${{ steps.platform.outputs.arch }}.tar.gz"
+        url="https://github.com/pirakansa/vorbere/releases/download/${{ steps.version.outputs.version }}/${archive}"
+
+        echo "Downloading ${url}"
+        curl -fsSL "$url" -o "$RUNNER_TEMP/$archive"
+        tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP"
+
+        binary='vorbere'
+        if [ '${{ steps.platform.outputs.os }}' = 'win' ]; then
+          binary='vorbere.exe'
+        fi
+
+        chmod +x "$RUNNER_TEMP/$binary" || true
+        echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
