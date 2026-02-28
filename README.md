@@ -13,6 +13,12 @@ Manifest format is `version: 1` with `repositories[].files[]`.
 go install github.com/pirakansa/vorbere/cmd/vorbere@latest
 ```
 
+Or install a published release binary:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pirakansa/vorbere/main/install.sh | bash
+```
+
 ## Quick Start
 
 ```bash
