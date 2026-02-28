@@ -67,9 +67,22 @@ Notes:
 
 - `digest` and `artifact_digest` are plain BLAKE3 hex strings (no `algo:` prefix).
 - Processing flow is `artifact_digest` verify -> decode/extract -> `digest` verify.
+- `digest` works only when decode/extract resolves to a single output file. If extraction resolves to multiple files, sync fails when `digest` is set.
 - For archive full extraction (`extract` omitted or `"."`), `digest` is not supported.
-- `rename` and `mode` apply to single-output cases, and are ignored for full-archive extraction.
+- `rename` applies to single-output cases, and also acts as destination root when an archive directory extraction resolves to multiple files.
+- `mode` applies to single-output cases, and is ignored when extraction resolves to multiple files.
 - `symlink` remains unsupported.
+
+### `extract` behavior details
+
+- `extract` omitted or `"."`: extract entire archive contents into `out_dir`.
+- `extract` points to a file entry: produces a single output.
+- `extract` points to a directory prefix: extracts all matching children as multiple outputs.
+
+### `rename` behavior details
+
+- Single output: `rename` overrides destination filename.
+- Multiple outputs from archive extraction: `rename` changes the extraction root directory name.
 
 ## Backup behavior
 
@@ -80,3 +93,35 @@ Default behavior keeps a timestamp backup before replacing existing files.
 When backup is active, existing destination is copied before overwrite:
 
 `<path>.<YYYYMMDDHHMMSS>.bak`
+
+## Examples
+
+### zstd decode + two-step digest verification
+
+```yaml
+version: 3
+
+repositories:
+  - url: https://example.com/releases/
+    files:
+      - file_name: tool-linux-amd64.zst
+        encoding: zstd
+        artifact_digest: <blake3-of-downloaded-zst>
+        digest: <blake3-of-decoded-tool>
+        out_dir: $HOME/.local/bin
+        rename: tool
+        mode: "0755"
+```
+
+### tar.xz full extraction
+
+```yaml
+version: 3
+
+repositories:
+  - url: https://example.com/dist/
+    files:
+      - file_name: node-v24.13.1-linux-x64.tar.xz
+        encoding: tar+xz
+        out_dir: $HOME/.local/lib
+```
