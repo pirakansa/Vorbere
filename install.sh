@@ -41,8 +41,8 @@ detect_os() {
     os=$(uname -s | tr '[:upper:]' '[:lower:]')
     case "$os" in
         linux) echo "linux" ;;
+        darwin) echo "darwin" ;;
         mingw*|msys*|cygwin*) echo "win" ;;
-        darwin) error "Unsupported OS: darwin (no release artifact published yet)" ;;
         *) error "Unsupported OS: $os" ;;
     esac
 }
@@ -63,7 +63,7 @@ ensure_supported_target() {
     local arch="$2"
 
     case "${os}-${arch}" in
-        linux-amd64|linux-arm|linux-arm64|win-amd64) ;;
+        linux-amd64|linux-arm|linux-arm64|darwin-amd64|darwin-arm64|win-amd64) ;;
         win-arm|win-arm64)
             error "Unsupported target: ${os}-${arch} (no release artifact published yet)"
             ;;
