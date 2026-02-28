@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -178,6 +179,20 @@ repositories:
 	ctx := &appContext{configPath: taskPath}
 	if err := runSyncWithOptions(ctx, syncCommandOptions{overwrite: true}); err != nil {
 		t.Fatalf("expected sync success with overwrite flag, err=%v", err)
+	}
+}
+
+func TestVersionCommandPrintsVersion(t *testing.T) {
+	cmd := newVersionCmd("v0.1.0")
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs(nil)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("version command failed: %v", err)
+	}
+	if out.String() != "v0.1.0\n" {
+		t.Fatalf("expected version output %q, got %q", "v0.1.0\n", out.String())
 	}
 }
 

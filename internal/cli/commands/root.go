@@ -15,7 +15,7 @@ type appContext struct {
 	configPath string
 }
 
-func NewRootCmd() *cobra.Command {
+func NewRootCmd(version string) *cobra.Command {
 	ctx := &appContext{}
 	cmd := &cobra.Command{
 		Use:   "vorbere",
@@ -32,12 +32,13 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(newSyncCmd(ctx))
 	cmd.AddCommand(newTasksCmd(ctx))
 	cmd.AddCommand(newInitCmd())
+	cmd.AddCommand(newVersionCmd(version))
 
 	return cmd
 }
 
-func Execute() int {
-	if err := NewRootCmd().Execute(); err != nil {
+func Execute(version string) int {
+	if err := NewRootCmd(version).Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return mapExitCode(err)
 	}
