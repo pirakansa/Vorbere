@@ -47,7 +47,7 @@ without knowing repository-specific tools.
 Preview changes first:
 
 ```bash
-vorbere plan
+vorbere sync --dry-run
 ```
 
 Apply sync (timestamp backup is default):

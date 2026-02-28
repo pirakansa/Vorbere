@@ -48,15 +48,6 @@ Flags:
 - `--overwrite`: overwrite existing files without creating timestamp backups
 - `--dry-run`: print summary without writing files
 
-### `vorbere plan`
-
-Preview sync operations.
-
-Behavior:
-
-- Equivalent to `vorbere sync --dry-run`.
-- Supports `--overwrite`.
-
 ### `vorbere completion [bash|zsh|fish|powershell]`
 
 Generate shell completion scripts.

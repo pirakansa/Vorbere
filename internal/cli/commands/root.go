@@ -31,7 +31,6 @@ func NewRootCmd() *cobra.Command {
 	cmd.AddCommand(newRunCmd(ctx))
 	cmd.AddCommand(newSyncCmd(ctx))
 	cmd.AddCommand(newTasksCmd(ctx))
-	cmd.AddCommand(newPlanCmd(ctx))
 	cmd.AddCommand(newInitCmd())
 
 	return cmd
