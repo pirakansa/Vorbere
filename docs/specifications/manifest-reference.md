@@ -24,7 +24,8 @@ repositories:
     files:
       - file_name: AGENTS.md
         out_dir: .
-        digest: <optional <algorithm>:<hex>>
+        download_digest: <optional <algorithm>:<hex>>
+        output_digest: <optional <algorithm>:<hex>>
         rename: AGENTS.md
         mode: "0644"
 ```
@@ -55,16 +56,19 @@ Supported `repositories[].files[]` fields:
 - `out_dir` (required): destination directory (`$ENV` variables are expanded)
 - `rename` (optional): output filename override
 - `mode` (optional): octal output file mode string (example: `"0755"`)
-- `digest` (optional): checksum of downloaded artifact in `<algorithm>:<hex>` format
+- `download_digest` (optional): checksum of downloaded artifact in `<algorithm>:<hex>` format
+- `output_digest` (optional): checksum of decoded/extracted single output in `<algorithm>:<hex>` format
 - `encoding` (optional): `zstd` | `tar+gzip` | `tar+xz`
 - `extract` (optional): archive path to extract; omit or `"."` to extract entire archive into `out_dir`
 
 Notes:
 
-- `digest` validates the downloaded artifact bytes before decode/extract.
 - Supported digest algorithms: `blake3`, `sha256`, `md5`.
-- `artifact_digest` is removed in `version: 1` and treated as an unknown field.
-- `rename` and `mode` apply only to single-output results.
+- `download_digest` is verified before decode/extract.
+- `output_digest` is verified only for single-output cases.
+- `output_digest` is invalid when extraction resolves to multiple files.
+- Legacy fields `digest` and `artifact_digest` are not supported in `version: 1`.
+- `rename` and `mode` apply to single-output cases.
 - For multi-output extraction, `mode` is ignored.
 - `symlink` remains unsupported.
 
@@ -86,7 +90,7 @@ When backup is active, existing destination is copied before overwrite:
 
 ## Examples
 
-### zstd decode with artifact digest verification
+### zstd decode with both digest checks
 
 ```yaml
 version: 1
@@ -96,7 +100,8 @@ repositories:
     files:
       - file_name: tool-linux-amd64.zst
         encoding: zstd
-        digest: blake3:<hex-of-downloaded-zst>
+        download_digest: blake3:<hex-of-downloaded-zst>
+        output_digest: blake3:<hex-of-decoded-tool>
         out_dir: $HOME/.local/bin
         rename: tool
         mode: "0755"
@@ -112,6 +117,6 @@ repositories:
     files:
       - file_name: node-v24.13.1-linux-x64.tar.xz
         encoding: tar+xz
-        digest: sha256:<hex-of-downloaded-tar.xz>
+        download_digest: sha256:<hex-of-downloaded-tar.xz>
         out_dir: $HOME/.local/lib
 ```

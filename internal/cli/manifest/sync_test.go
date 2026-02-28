@@ -153,9 +153,9 @@ func TestSyncChecksumValidation(t *testing.T) {
 				Sources: map[string]Source{"src": {URL: server.URL}},
 				Files: []FileRule{
 					{
-						Source:   "src",
-						Path:     "checksum-" + tc.name + ".txt",
-						Checksum: checksumSpec(tc.algorithm, tc.digest),
+						Source:           "src",
+						Path:             "checksum-" + tc.name + ".txt",
+						DownloadChecksum: checksumSpec(tc.algorithm, tc.digest),
 					},
 				},
 			}
@@ -165,7 +165,7 @@ func TestSyncChecksumValidation(t *testing.T) {
 			}
 
 			cfg.Files[0].Path = "checksum-" + tc.name + "-mismatch.txt"
-			cfg.Files[0].Checksum = checksumSpec(tc.algorithm, tc.digest+"00")
+			cfg.Files[0].DownloadChecksum = checksumSpec(tc.algorithm, tc.digest+"00")
 			if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
 				t.Fatalf("expected checksum mismatch error")
 			}
@@ -241,11 +241,11 @@ func TestSyncDigestValidationForDownloadedArtifactWithZstd(t *testing.T) {
 		Sources: map[string]Source{"src": {URL: server.URL}},
 		Files: []FileRule{
 			{
-				Source:   "src",
-				Path:     "bin/tool",
-				Encoding: EncodingZstd,
-				Checksum: checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex(artifact)),
-				Mode:     "0755",
+				Source:           "src",
+				Path:             "bin/tool",
+				Encoding:         EncodingZstd,
+				DownloadChecksum: checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex(artifact)),
+				Mode:             "0755",
 			},
 		},
 	}
@@ -262,15 +262,41 @@ func TestSyncDigestValidationForDownloadedArtifactWithZstd(t *testing.T) {
 	}
 
 	cfg.Files[0].Path = "bin/tool-2"
-	cfg.Files[0].Checksum = checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex([]byte("bad")))
+	cfg.Files[0].DownloadChecksum = checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex([]byte("bad")))
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
 		t.Fatalf("expected artifact checksum mismatch")
 	}
+}
 
+func TestSyncOutputDigestValidationForZstd(t *testing.T) {
+	payload := []byte("decoded-content")
+	artifact := mustEncodeZstd(t, payload)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(artifact)
+	}))
+	defer server.Close()
+
+	temp := t.TempDir()
+	cfg := &SyncConfig{
+		Version: "v1",
+		Sources: map[string]Source{"src": {URL: server.URL}},
+		Files: []FileRule{
+			{
+				Source:         "src",
+				Path:           "bin/tool",
+				Encoding:       EncodingZstd,
+				OutputChecksum: checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex(payload)),
+				Mode:           "0755",
+			},
+		},
+	}
+	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err != nil {
+		t.Fatalf("sync failed: %v", err)
+	}
 	cfg.Files[0].Path = "bin/tool-3"
-	cfg.Files[0].Checksum = checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex(payload))
+	cfg.Files[0].OutputChecksum = checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex([]byte("bad")))
 	if _, err := Sync(cfg, SyncOptions{RootDir: temp}); err == nil {
-		t.Fatalf("expected decoded checksum mismatch when digest checks downloaded artifact")
+		t.Fatalf("expected output checksum mismatch")
 	}
 }
 
@@ -290,12 +316,13 @@ func TestSyncTarGzipExtractFile(t *testing.T) {
 		Sources: map[string]Source{"src": {URL: server.URL}},
 		Files: []FileRule{
 			{
-				Source:   "src",
-				Path:     "bin/tool",
-				Encoding: EncodingTarGzip,
-				Extract:  "pkg/bin/tool",
-				Checksum: checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex(artifact)),
-				Mode:     "0755",
+				Source:           "src",
+				Path:             "bin/tool",
+				Encoding:         EncodingTarGzip,
+				Extract:          "pkg/bin/tool",
+				DownloadChecksum: checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex(artifact)),
+				OutputChecksum:   checksumSpec(DigestAlgorithmBLAKE3, shared.BLAKE3Hex([]byte("tool-binary"))),
+				Mode:             "0755",
 			},
 		},
 	}

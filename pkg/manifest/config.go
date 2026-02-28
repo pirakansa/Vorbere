@@ -136,21 +136,33 @@ func buildSyncEntry(repo Repository, file RepositoryFile, repoIndex, fileIndex i
 		Headers: repo.Headers,
 	}
 	rule := FileRule{
-		Source:        sourceID,
-		Path:          targetPath,
-		Mode:          file.Mode,
-		Checksum:      "",
-		Encoding:      encoding,
-		Extract:       extract,
-		ExpandArchive: expandArchive,
+		Source:           sourceID,
+		Path:             targetPath,
+		Mode:             file.Mode,
+		DownloadChecksum: "",
+		OutputChecksum:   "",
+		Encoding:         encoding,
+		Extract:          extract,
+		ExpandArchive:    expandArchive,
 	}
-	checksum, err := normalizeDigest(file.Digest)
+	downloadChecksum, err := normalizeDigest(file.DownloadDigest)
 	if err != nil {
-		return "", Source{}, FileRule{}, fmt.Errorf("repositories[%d].files[%d].digest %w", repoIndex, fileIndex, err)
+		return "", Source{}, FileRule{}, fmt.Errorf("repositories[%d].files[%d].download_digest %w", repoIndex, fileIndex, err)
 	}
-	rule.Checksum = checksum
+	outputChecksum, err := normalizeDigest(file.OutputDigest)
+	if err != nil {
+		return "", Source{}, FileRule{}, fmt.Errorf("repositories[%d].files[%d].output_digest %w", repoIndex, fileIndex, err)
+	}
+	rule.DownloadChecksum = downloadChecksum
+	rule.OutputChecksum = outputChecksum
 	if rule.ExpandArchive {
 		rule.Mode = ""
+	}
+	if rule.ExpandArchive && rule.OutputChecksum != "" {
+		return "", Source{}, FileRule{}, fmt.Errorf(
+			"repositories[%d].files[%d].output_digest cannot be used when extract is omitted for archive encodings",
+			repoIndex, fileIndex,
+		)
 	}
 
 	return sourceID, source, rule, nil

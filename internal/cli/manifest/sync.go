@@ -57,7 +57,7 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := verifyChecksum(artifact, rule.Checksum); err != nil {
+		if err := verifyChecksum(artifact, rule.DownloadChecksum); err != nil {
 			return nil, err
 		}
 
