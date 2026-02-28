@@ -54,5 +54,5 @@ func printSyncResult(res *manifest.SyncResult) {
 	if res == nil {
 		return
 	}
-	fmt.Printf("created=%d updated=%d unchanged=%d skipped=%d\n", res.Created, res.Updated, res.Unchanged, res.Skipped)
+	fmt.Printf("created=%d updated=%d unchanged=%d\n", res.Created, res.Updated, res.Unchanged)
 }

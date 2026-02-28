@@ -33,7 +33,6 @@ type SyncResult struct {
 	Created   int
 	Updated   int
 	Unchanged int
-	Skipped   int
 }
 
 func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
@@ -61,7 +60,7 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 		}
 
 		target := resolveTargetPath(opts.RootDir, rule.Path)
-		outcome, _, err := applyRule(target, incoming, rule.Mode, opts)
+		outcome, err := applyRule(target, incoming, rule.Mode, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -71,16 +70,16 @@ func Sync(cfg *SyncConfig, opts SyncOptions) (*SyncResult, error) {
 	return res, nil
 }
 
-func applyRule(targetPath string, incoming []byte, fileMode string, opts SyncOptions) (string, bool, error) {
+func applyRule(targetPath string, incoming []byte, fileMode string, opts SyncOptions) (string, error) {
 	current, err := os.ReadFile(targetPath)
 	exists := err == nil
 	if err != nil && !os.IsNotExist(err) {
-		return "", false, err
+		return "", err
 	}
 
 	incomingHash := shared.SHA256Hex(incoming)
 	if exists && shared.SHA256Hex(current) == incomingHash {
-		return outcomeUnchanged, false, nil
+		return outcomeUnchanged, nil
 	}
 
 	backup := shared.BackupTimestamp
@@ -91,32 +90,32 @@ func applyRule(targetPath string, incoming []byte, fileMode string, opts SyncOpt
 	return writeTarget(targetPath, incoming, current, exists, fileMode, backup, opts)
 }
 
-func writeTarget(path string, incoming, current []byte, existed bool, fileMode, backup string, opts SyncOptions) (string, bool, error) {
+func writeTarget(path string, incoming, current []byte, existed bool, fileMode, backup string, opts SyncOptions) (string, error) {
 	if opts.DryRun {
 		if existed {
-			return outcomeUpdated, false, nil
+			return outcomeUpdated, nil
 		}
-		return outcomeCreated, false, nil
+		return outcomeCreated, nil
 	}
 	if existed {
 		if err := shared.BackupFile(path, current, backup, opts.Now()); err != nil {
-			return "", false, err
+			return "", err
 		}
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return "", false, err
+		return "", err
 	}
 	perm, err := resolveOutputMode(fileMode)
 	if err != nil {
-		return "", false, err
+		return "", err
 	}
 	if err := os.WriteFile(path, incoming, perm); err != nil {
-		return "", false, err
+		return "", err
 	}
 	if existed {
-		return outcomeUpdated, true, nil
+		return outcomeUpdated, nil
 	}
-	return outcomeCreated, true, nil
+	return outcomeCreated, nil
 }
 
 func resolveOutputMode(v string) (os.FileMode, error) {
