@@ -39,13 +39,11 @@ Sync files from `repositories` in `vorbere.yaml`.
 
 Default behavior:
 
-- merge mode: `overwrite`
-- backup strategy: `none`
+- backup strategy: `timestamp`
 
 Flags:
 
-- `--mode three_way|overwrite|keep_local`: override merge mode
-- `--backup none|timestamp`: override backup strategy
+- `--overwrite`: overwrite existing files without creating timestamp backups
 - `--dry-run`: print summary without writing files
 
 ### `vorbere plan`
@@ -55,7 +53,7 @@ Preview sync operations.
 Behavior:
 
 - Equivalent to `vorbere sync --dry-run`.
-- Supports `--mode` and `--backup`.
+- Supports `--overwrite`.
 
 ### `vorbere completion [bash|zsh|fish|powershell]`
 
@@ -76,7 +74,6 @@ Examples:
 
 - `0`: success
 - `2`: configuration/load error
-- `3`: sync conflict
 - `4`: undefined task
 - `5`: task execution failed
 - `6`: sync execution failed

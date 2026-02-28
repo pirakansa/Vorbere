@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/pirakansa/vorbere/internal/cli/manifest"
 	"github.com/pirakansa/vorbere/internal/cli/shared"
@@ -10,9 +9,8 @@ import (
 )
 
 type syncCommandOptions struct {
-	mode   string
-	backup string
-	dryRun bool
+	overwrite bool
+	dryRun    bool
 }
 
 func newSyncCmd(ctx *appContext) *cobra.Command {
@@ -25,8 +23,7 @@ func newSyncCmd(ctx *appContext) *cobra.Command {
 			return runSyncWithOptions(ctx, *opts)
 		},
 	}
-	cmd.Flags().StringVar(&opts.mode, "mode", "", "merge mode override: three_way|overwrite|keep_local")
-	cmd.Flags().StringVar(&opts.backup, "backup", "", "backup strategy override: none|timestamp")
+	cmd.Flags().BoolVar(&opts.overwrite, "overwrite", false, "overwrite existing files without timestamp backup")
 	cmd.Flags().BoolVar(&opts.dryRun, "dry-run", false, "show actions without writing files")
 	return cmd
 }
@@ -42,17 +39,12 @@ func runSyncWithOptions(ctx *appContext, opts syncCommandOptions) error {
 	}
 
 	res, err := manifest.Sync(syncCfg, manifest.SyncOptions{
-		RootDir:      rootDir,
-		LockPath:     filepath.Join(rootDir, manifest.LockFileName),
-		ModeOverride: opts.mode,
-		Backup:       opts.backup,
-		DryRun:       opts.dryRun,
+		RootDir:   rootDir,
+		Overwrite: opts.overwrite,
+		DryRun:    opts.dryRun,
 	})
 	printSyncResult(res)
 	if err != nil {
-		if err == manifest.ErrSyncConflict {
-			return newExitCodeError(shared.ExitSyncConflict, err)
-		}
 		return newExitCodeError(shared.ExitSyncFailed, err)
 	}
 	return nil
@@ -63,7 +55,4 @@ func printSyncResult(res *manifest.SyncResult) {
 		return
 	}
 	fmt.Printf("created=%d updated=%d unchanged=%d skipped=%d\n", res.Created, res.Updated, res.Unchanged, res.Skipped)
-	for _, c := range res.Conflicts {
-		fmt.Printf("conflict: %s\n", c)
-	}
 }

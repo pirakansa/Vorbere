@@ -2,7 +2,7 @@ version: 3
 
 tasks:
   sync:
-    run: "vorbere sync --backup timestamp"
+    run: "vorbere sync"
     desc: sync bootkit-managed files into this repository
 
   fmt:

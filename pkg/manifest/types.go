@@ -61,7 +61,5 @@ type FileRule struct {
 	Source   string `yaml:"source"`
 	Path     string `yaml:"path"`
 	Mode     string `yaml:"mode"`
-	Merge    string `yaml:"merge"`
-	Backup   string `yaml:"backup"`
 	Checksum string `yaml:"checksum"`
 }

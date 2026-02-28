@@ -1,6 +1,6 @@
 # Manifest Reference
 
-This document defines the `vorbere.yaml` manifest and `vorbere.lock` behavior.
+This document defines the `vorbere.yaml` manifest behavior.
 
 Current format: `version: 3` (ppkgmgr-compatible repository/file shape).
 
@@ -72,29 +72,12 @@ Currently unsupported in `vorbere` (explicitly rejected when set):
 - `extract`
 - `symlink`
 
-## Merge behavior
-
-Default behavior is overwrite, matching ppkgmgr-style update flow.
-
-- Writes incoming content to target paths.
-- `--mode` can still override runtime behavior (`three_way|overwrite|keep_local`) for vorbere-specific operations.
-
 ## Backup behavior
 
-When backup is `timestamp`, existing destination is copied before overwrite:
+Default behavior keeps a timestamp backup before replacing existing files.
+
+`--overwrite` disables backup creation and overwrites directly.
+
+When backup is active, existing destination is copied before overwrite:
 
 `<path>.<YYYYMMDDHHMMSS>.bak`
-
-## Lock file (`vorbere.lock`)
-
-Stored at repository root (same root used for command config).
-
-Used for three-way conflict detection and update tracking when `three_way` mode is used.
-
-Top-level fields:
-
-- `version`
-- `files.<absolute-target-path>.source_url`
-- `files.<absolute-target-path>.applied_hash`
-- `files.<absolute-target-path>.source_hash`
-- `files.<absolute-target-path>.updated_at`

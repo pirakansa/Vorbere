@@ -50,9 +50,6 @@ func mapExitCode(err error) int {
 	if errors.As(err, &codeErr) {
 		return codeErr.code
 	}
-	if errors.Is(err, manifest.ErrSyncConflict) {
-		return shared.ExitSyncConflict
-	}
 	return 1
 }
 

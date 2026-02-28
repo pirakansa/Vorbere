@@ -33,9 +33,6 @@ func TestBuildSyncConfigBuildsRulesFromRepositories(t *testing.T) {
 	if rule.Checksum != "abcdef" {
 		t.Fatalf("unexpected checksum: %s", rule.Checksum)
 	}
-	if rule.Merge != MergeOverwrite {
-		t.Fatalf("unexpected merge: %s", rule.Merge)
-	}
 	src := resolved.Sources[rule.Source]
 	if src.URL != "https://example.com/base/a.txt" {
 		t.Fatalf("unexpected source url: %s", src.URL)

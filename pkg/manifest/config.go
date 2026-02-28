@@ -12,7 +12,6 @@ import (
 const (
 	DefaultTaskConfigVersion = 3
 	SyncConfigVersion        = "v3"
-	MergeOverwrite           = "overwrite"
 )
 
 func NormalizeTaskConfig(cfg *TaskConfig) {
@@ -113,7 +112,6 @@ func buildSyncEntry(repo Repository, file RepositoryFile, repoIndex, fileIndex i
 		Source:   sourceID,
 		Path:     targetPath,
 		Mode:     file.Mode,
-		Merge:    MergeOverwrite,
 		Checksum: normalizeDigest(file.Digest),
 	}
 

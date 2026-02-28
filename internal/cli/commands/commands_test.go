@@ -9,16 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pirakansa/vorbere/internal/cli/manifest"
 	"github.com/pirakansa/vorbere/internal/cli/shared"
 )
 
 func TestMapExitCode(t *testing.T) {
 	if got := mapExitCode(newExitCodeError(shared.ExitTaskFailed, errors.New("x"))); got != shared.ExitTaskFailed {
 		t.Fatalf("expected %d got %d", shared.ExitTaskFailed, got)
-	}
-	if got := mapExitCode(manifest.ErrSyncConflict); got != shared.ExitSyncConflict {
-		t.Fatalf("expected %d got %d", shared.ExitSyncConflict, got)
 	}
 	if got := mapExitCode(errors.New("other")); got != 1 {
 		t.Fatalf("expected 1 got %d", got)
@@ -159,7 +155,7 @@ func TestLoadTaskAndRootUsesCWDForRemoteConfig(t *testing.T) {
 	}
 }
 
-func TestSyncCommandReturnsSyncFailedForInvalidMode(t *testing.T) {
+func TestSyncCommandSucceedsWithOverwriteFlag(t *testing.T) {
 	temp := t.TempDir()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("content"))
@@ -180,13 +176,8 @@ repositories:
 	}
 
 	ctx := &appContext{configPath: taskPath}
-	err := runSyncWithOptions(ctx, syncCommandOptions{mode: "invalid-mode"})
-	if err == nil {
-		t.Fatalf("expected sync failure")
-	}
-	var exitErr *exitCodeError
-	if !errors.As(err, &exitErr) || exitErr.code != shared.ExitSyncFailed {
-		t.Fatalf("expected ExitSyncFailed, err=%v", err)
+	if err := runSyncWithOptions(ctx, syncCommandOptions{overwrite: true}); err != nil {
+		t.Fatalf("expected sync success with overwrite flag, err=%v", err)
 	}
 }
 
