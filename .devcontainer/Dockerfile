@@ -24,6 +24,8 @@ RUN useradd -u ${CONTAINER_USERID} -s /bin/bash -m ${CONTAINER_USERNAME} && \
 
 USER ${CONTAINER_USERNAME}
 
+RUN curl -fsSL https://raw.githubusercontent.com/pirakansa/vorbere/main/install.sh | bash
+
 WORKDIR /work
 
 
