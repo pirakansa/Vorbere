@@ -1,11 +1,13 @@
 package commands
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"testing"
 
@@ -178,6 +180,96 @@ repositories:
 	ctx := &appContext{configPath: taskPath}
 	if err := runSyncWithOptions(ctx, syncCommandOptions{overwrite: true}); err != nil {
 		t.Fatalf("expected sync success with overwrite flag, err=%v", err)
+	}
+}
+
+func TestVersionCommandPrintsVersion(t *testing.T) {
+	cmd := newVersionCmd("v0.1.0")
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetArgs(nil)
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("version command failed: %v", err)
+	}
+	if out.String() != "v0.1.0\n" {
+		t.Fatalf("expected version output %q, got %q", "v0.1.0\n", out.String())
+	}
+}
+
+func TestResolveVersionUsesBuildInfoWhenDefaultVersion(t *testing.T) {
+	orig := readBuildInfo
+	t.Cleanup(func() { readBuildInfo = orig })
+	readBuildInfo = func() (info *debug.BuildInfo, ok bool) {
+		return &debug.BuildInfo{
+			Main: debug.Module{
+				Version: "v0.2.0",
+			},
+		}, true
+	}
+
+	if got := resolveVersion(defaultVersionValue); got != "v0.2.0" {
+		t.Fatalf("expected build info version, got %q", got)
+	}
+}
+
+func TestResolveVersionPrefersProvidedVersion(t *testing.T) {
+	orig := readBuildInfo
+	t.Cleanup(func() { readBuildInfo = orig })
+	readBuildInfo = func() (info *debug.BuildInfo, ok bool) {
+		return &debug.BuildInfo{
+			Main: debug.Module{
+				Version: "v9.9.9",
+			},
+		}, true
+	}
+
+	if got := resolveVersion("v0.3.0"); got != "v0.3.0" {
+		t.Fatalf("expected provided version, got %q", got)
+	}
+}
+
+func TestResolveVersionAddsVPrefixWhenProvidedVersionHasNoPrefix(t *testing.T) {
+	orig := readBuildInfo
+	t.Cleanup(func() { readBuildInfo = orig })
+	readBuildInfo = func() (info *debug.BuildInfo, ok bool) {
+		return &debug.BuildInfo{
+			Main: debug.Module{
+				Version: "v9.9.9",
+			},
+		}, true
+	}
+
+	if got := resolveVersion("0.3.0"); got != "v0.3.0" {
+		t.Fatalf("expected normalized version, got %q", got)
+	}
+}
+
+func TestResolveVersionAddsVPrefixForBuildInfoVersion(t *testing.T) {
+	orig := readBuildInfo
+	t.Cleanup(func() { readBuildInfo = orig })
+	readBuildInfo = func() (info *debug.BuildInfo, ok bool) {
+		return &debug.BuildInfo{
+			Main: debug.Module{
+				Version: "0.2.0",
+			},
+		}, true
+	}
+
+	if got := resolveVersion(defaultVersionValue); got != "v0.2.0" {
+		t.Fatalf("expected normalized build info version, got %q", got)
+	}
+}
+
+func TestResolveVersionFallsBackToDefaultWhenBuildInfoUnavailable(t *testing.T) {
+	orig := readBuildInfo
+	t.Cleanup(func() { readBuildInfo = orig })
+	readBuildInfo = func() (info *debug.BuildInfo, ok bool) {
+		return nil, false
+	}
+
+	if got := resolveVersion(defaultVersionValue); got != defaultVersionValue {
+		t.Fatalf("expected default version %q, got %q", defaultVersionValue, got)
 	}
 }
 
