@@ -1,10 +1,11 @@
 package manifest
 
 import (
+	"io"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -117,12 +118,21 @@ func TestResolveSyncConfigRejectsTaskWithoutRunOrDependsOn(t *testing.T) {
 }
 
 func TestLoadTaskConfigFromRemoteURL(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("version: 1\n"))
-	}))
-	defer server.Close()
+	oldClient := http.DefaultClient
+	t.Cleanup(func() {
+		http.DefaultClient = oldClient
+	})
+	http.DefaultClient = &http.Client{
+		Transport: loadTestRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("version: 1\n")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
 
-	cfg, err := LoadTaskConfig(server.URL)
+	cfg, err := LoadTaskConfig("https://example.com/vorbere.yaml")
 	if err != nil {
 		t.Fatalf("LoadTaskConfig returned error: %v", err)
 	}
@@ -132,12 +142,21 @@ func TestLoadTaskConfigFromRemoteURL(t *testing.T) {
 }
 
 func TestLoadTaskConfigFromRemoteURLReturnsErrorOnNon2xx(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "not found", http.StatusNotFound)
-	}))
-	defer server.Close()
+	oldClient := http.DefaultClient
+	t.Cleanup(func() {
+		http.DefaultClient = oldClient
+	})
+	http.DefaultClient = &http.Client{
+		Transport: loadTestRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusNotFound,
+				Body:       io.NopCloser(strings.NewReader("not found")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
 
-	if _, err := LoadTaskConfig(server.URL); err == nil {
+	if _, err := LoadTaskConfig("https://example.com/vorbere.yaml"); err == nil {
 		t.Fatalf("expected error for non-2xx response")
 	}
 }
@@ -192,4 +211,41 @@ func TestIsRemoteConfigLocation(t *testing.T) {
 	if IsRemoteConfigLocation("vorbere.yaml") {
 		t.Fatalf("expected local path to not be remote config")
 	}
+}
+
+func TestResolveSyncConfigDoesNotExpandRepositoryHeaderEnvForRemoteConfig(t *testing.T) {
+	t.Setenv("REMOTE_ONLY_TOKEN", "secret-token")
+	cfg := &TaskConfig{
+		Version: 1,
+		Repositories: []Repository{
+			{
+				URL: "https://example.com/base/",
+				Headers: map[string]string{
+					"Authorization": "Bearer ${REMOTE_ONLY_TOKEN}",
+				},
+				Files: []RepositoryFile{
+					{
+						FileName: "a.txt",
+						OutDir:   "dest",
+					},
+				},
+			},
+		},
+	}
+
+	resolved, err := ResolveSyncConfig(cfg, "https://example.com/vorbere.yaml")
+	if err != nil {
+		t.Fatalf("ResolveSyncConfig returned error: %v", err)
+	}
+	rule := resolved.Files[0]
+	src := resolved.Sources[rule.Source]
+	if got := src.Headers["Authorization"]; got != "Bearer ${REMOTE_ONLY_TOKEN}" {
+		t.Fatalf("expected literal header for remote config, got %q", got)
+	}
+}
+
+type loadTestRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f loadTestRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }

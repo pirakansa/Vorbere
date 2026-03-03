@@ -32,11 +32,12 @@ func IsRemoteConfigLocation(value string) bool {
 }
 
 func ResolveSyncConfig(taskCfg *TaskConfig, taskConfigPath string) (*SyncConfig, error) {
-	_ = taskConfigPath
 	if err := pkgmanifest.ValidateTaskConfig(taskCfg); err != nil {
 		return nil, err
 	}
-	return pkgmanifest.BuildSyncConfig(taskCfg)
+	return pkgmanifest.BuildSyncConfigWithOptions(taskCfg, pkgmanifest.BuildSyncConfigOptions{
+		ExpandRepositoryHeaderEnv: !IsRemoteConfigLocation(taskConfigPath),
+	})
 }
 
 func ValidateSyncConfig(cfg *SyncConfig) error {

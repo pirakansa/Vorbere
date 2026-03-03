@@ -21,13 +21,27 @@ func download(src Source) ([]byte, error) {
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(
+			"download failed: %s",
+			maskHeaderValues(err.Error(), src.Headers),
+		)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("download failed: %s status=%d", src.URL, resp.StatusCode)
 	}
 	return io.ReadAll(resp.Body)
+}
+
+func maskHeaderValues(message string, headers map[string]string) string {
+	masked := message
+	for _, value := range headers {
+		if value == "" {
+			continue
+		}
+		masked = strings.ReplaceAll(masked, value, "***")
+	}
+	return masked
 }
 
 func verifyChecksum(content []byte, checksum string) error {
