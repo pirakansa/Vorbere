@@ -202,7 +202,7 @@ repositories:
 }
 
 func TestVersionCommandPrintsVersion(t *testing.T) {
-	cmd := newVersionCmd("v0.1.0")
+	cmd := newVersionCmd("v0.2.0")
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetArgs(nil)
@@ -210,8 +210,8 @@ func TestVersionCommandPrintsVersion(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("version command failed: %v", err)
 	}
-	if out.String() != "v0.1.0\n" {
-		t.Fatalf("expected version output %q, got %q", "v0.1.0\n", out.String())
+	if out.String() != "v0.2.0\n" {
+		t.Fatalf("expected version output %q, got %q", "v0.2.0\n", out.String())
 	}
 }
 

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./docs/vorbere.jpg" width="320" alt="vorbere logo"/>
+</p>
+
 # Vorbere
 
 `vorbere` is a single-binary tool for:
@@ -43,7 +47,7 @@ When `--config` uses a remote `http(s)` URL, `repositories[].headers` values are
 ```yaml
 - uses: pirakansa/vorbere@v0
   with:
-    version: v0.1.0
+    version: v0.2.0
 
 - run: vorbere --config vorbere.yaml run lint
 - run: vorbere --config vorbere.yaml run test
@@ -59,7 +63,7 @@ For example, replace Makefile-based CI steps with:
 
 - uses: pirakansa/vorbere@v0
   with:
-    version: v0.1.0
+    version: v0.2.0
 
 - run: vorbere --config vorbere.yaml run lint
 - run: vorbere --config vorbere.yaml run test
