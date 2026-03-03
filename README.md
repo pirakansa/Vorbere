@@ -27,6 +27,17 @@ vorbere sync
 vorbere run ci
 ```
 
+For repository auth headers, prefer environment variables in `vorbere.yaml`:
+
+```yaml
+repositories:
+  - url: https://example.com/private/
+    headers:
+      Authorization: "Bearer ${GITHUB_TOKEN}"
+```
+
+When `--config` uses a remote `http(s)` URL, `repositories[].headers` values are treated as literals (no `${VAR}` expansion).
+
 ## GitHub Action
 
 ```yaml

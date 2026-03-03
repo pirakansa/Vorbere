@@ -47,7 +47,7 @@ repositories:
 ## `repositories` fields
 
 - `repositories[].url`: required base URL
-- `repositories[].headers`: optional HTTP headers applied to all files in the repository
+- `repositories[].headers`: optional HTTP headers applied to all files in the repository (`${VAR}` is expanded from environment variables)
 - `repositories[].files[]`: file definitions
 
 Supported `repositories[].files[]` fields:
@@ -64,6 +64,10 @@ Supported `repositories[].files[]` fields:
 Notes:
 
 - Supported digest algorithms: `blake3`, `sha256`, `md5`.
+- `repositories[].headers` expands `${VAR}` placeholders for local config files; undefined variables cause an error.
+- When `--config` points to a remote `http(s)` URL, `repositories[].headers` is not expanded and is used as-is.
+- Use environment variables for secrets (for example tokens) instead of writing secret values directly in `vorbere.yaml`.
+- Header values are masked in error messages.
 - `download_digest` is verified before decode/extract.
 - `output_digest` is verified only for single-output cases.
 - `output_digest` is invalid when extraction resolves to multiple files.
@@ -121,6 +125,21 @@ repositories:
         out_dir: $HOME/.local/lib
 ```
 
+### headers with environment variable secrets
+
+```yaml
+version: 1
+
+repositories:
+  - url: https://example.com/private/
+    headers:
+      Authorization: "Bearer ${GITHUB_TOKEN}"
+    files:
+      - file_name: release.txt
+        out_dir: .
+```
+
 ## TODO
 
 - Add per-file OS/architecture selection (for example `os` / `arch` fields under `repositories[].files[]`) so one manifest can switch download targets without maintaining multiple config files.
+- Add an explicit opt-in field (for example `allow_header_forward_to`) to permit forwarding repository headers on cross-host redirects only to approved hosts.

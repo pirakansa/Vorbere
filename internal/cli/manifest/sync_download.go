@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/pirakansa/vorbere/internal/cli/shared"
@@ -19,15 +20,57 @@ func download(src Source) ([]byte, error) {
 	for k, v := range src.Headers {
 		req.Header.Set(k, v)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := newDownloadClient(src.Headers).Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf(
+			"download failed: %s",
+			maskHeaderValues(err.Error(), src.Headers),
+		)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("download failed: %s status=%d", src.URL, resp.StatusCode)
 	}
 	return io.ReadAll(resp.Body)
+}
+
+func newDownloadClient(headers map[string]string) *http.Client {
+	base := http.DefaultClient
+	if base == nil {
+		base = &http.Client{}
+	}
+	client := *base
+	prevCheckRedirect := base.CheckRedirect
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if len(via) > 0 && !sameHost(req.URL, via[len(via)-1].URL) {
+			for key := range headers {
+				req.Header.Del(key)
+			}
+		}
+		if prevCheckRedirect != nil {
+			return prevCheckRedirect(req, via)
+		}
+		return nil
+	}
+	return &client
+}
+
+func sameHost(left, right *url.URL) bool {
+	if left == nil || right == nil {
+		return false
+	}
+	return strings.EqualFold(left.Host, right.Host)
+}
+
+func maskHeaderValues(message string, headers map[string]string) string {
+	masked := message
+	for _, value := range headers {
+		if value == "" {
+			continue
+		}
+		masked = strings.ReplaceAll(masked, value, "***")
+	}
+	return masked
 }
 
 func verifyChecksum(content []byte, checksum string) error {

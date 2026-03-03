@@ -8,6 +8,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -21,6 +23,12 @@ const (
 	DigestAlgorithmSHA256    = "sha256"
 	DigestAlgorithmMD5       = "md5"
 )
+
+var headerEnvPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
+
+type BuildSyncConfigOptions struct {
+	ExpandRepositoryHeaderEnv bool
+}
 
 func NormalizeTaskConfig(cfg *TaskConfig) {
 	if cfg.Version == 0 {
@@ -75,6 +83,12 @@ func ValidateSyncConfig(cfg *SyncConfig) error {
 }
 
 func BuildSyncConfig(taskCfg *TaskConfig) (*SyncConfig, error) {
+	return BuildSyncConfigWithOptions(taskCfg, BuildSyncConfigOptions{
+		ExpandRepositoryHeaderEnv: true,
+	})
+}
+
+func BuildSyncConfigWithOptions(taskCfg *TaskConfig, opts BuildSyncConfigOptions) (*SyncConfig, error) {
 	if err := ValidateTaskConfig(taskCfg); err != nil {
 		return nil, err
 	}
@@ -88,6 +102,13 @@ func BuildSyncConfig(taskCfg *TaskConfig) (*SyncConfig, error) {
 		if strings.TrimSpace(repo.URL) == "" {
 			return nil, fmt.Errorf("repositories[%d].url is required", repoIndex)
 		}
+		if opts.ExpandRepositoryHeaderEnv {
+			resolvedHeaders, err := expandRepositoryHeaders(repo.Headers, repoIndex)
+			if err != nil {
+				return nil, err
+			}
+			repo.Headers = resolvedHeaders
+		}
 		for fileIndex, file := range repo.Files {
 			sourceID, source, rule, err := buildSyncEntry(repo, file, repoIndex, fileIndex)
 			if err != nil {
@@ -99,6 +120,43 @@ func BuildSyncConfig(taskCfg *TaskConfig) (*SyncConfig, error) {
 	}
 
 	return cfg, nil
+}
+
+func expandRepositoryHeaders(headers map[string]string, repoIndex int) (map[string]string, error) {
+	if len(headers) == 0 {
+		return nil, nil
+	}
+	expanded := make(map[string]string, len(headers))
+	for key, rawValue := range headers {
+		value, err := expandHeaderValue(rawValue)
+		if err != nil {
+			return nil, fmt.Errorf("repositories[%d].headers[%q] %w", repoIndex, key, err)
+		}
+		expanded[key] = value
+	}
+	return expanded, nil
+}
+
+func expandHeaderValue(rawValue string) (string, error) {
+	missing := map[string]struct{}{}
+	expanded := headerEnvPattern.ReplaceAllStringFunc(rawValue, func(match string) string {
+		name := match[2 : len(match)-1]
+		value, ok := os.LookupEnv(name)
+		if !ok {
+			missing[name] = struct{}{}
+			return ""
+		}
+		return value
+	})
+	if len(missing) == 0 {
+		return expanded, nil
+	}
+	names := make([]string, 0, len(missing))
+	for name := range missing {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return "", fmt.Errorf("references undefined environment variable(s): %s", strings.Join(names, ", "))
 }
 
 func buildSyncEntry(repo Repository, file RepositoryFile, repoIndex, fileIndex int) (string, Source, FileRule, error) {

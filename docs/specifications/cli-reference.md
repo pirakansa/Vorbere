@@ -8,6 +8,10 @@
 
 - `--config <path|url>`: path or `http(s)` URL to task config file (default: `vorbere.yaml`)
 
+Behavior:
+
+- When `--config` is a remote URL, `repositories[].headers` environment variable expansion is disabled.
+
 ## Commands
 
 ### `vorbere init`

@@ -1,7 +1,9 @@
 package manifest
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -180,5 +182,70 @@ func TestBuildSyncConfigRejectsUnsupportedVersion(t *testing.T) {
 	}
 	if _, err := BuildSyncConfig(cfg); err == nil {
 		t.Fatalf("expected unsupported version error")
+	}
+}
+
+func TestBuildSyncConfigExpandsRepositoryHeaderEnvironmentVariables(t *testing.T) {
+	t.Setenv("VOR_TOKEN", "secret-token")
+	cfg := &TaskConfig{
+		Version: 1,
+		Repositories: []Repository{{
+			URL: "https://example.com/base/",
+			Headers: map[string]string{
+				"Authorization": "Bearer ${VOR_TOKEN}",
+			},
+			Files: []RepositoryFile{{
+				FileName: "a.txt",
+				OutDir:   ".",
+			}},
+		}},
+	}
+
+	resolved, err := BuildSyncConfig(cfg)
+	if err != nil {
+		t.Fatalf("BuildSyncConfig returned error: %v", err)
+	}
+	rule := resolved.Files[0]
+	src := resolved.Sources[rule.Source]
+	if got := src.Headers["Authorization"]; got != "Bearer secret-token" {
+		t.Fatalf("unexpected header value: %q", got)
+	}
+}
+
+func TestBuildSyncConfigRejectsUndefinedRepositoryHeaderEnvironmentVariable(t *testing.T) {
+	const envName = "VOR_UNDEFINED_SECRET"
+	oldValue, hadOldValue := os.LookupEnv(envName)
+	_ = os.Unsetenv(envName)
+	t.Cleanup(func() {
+		if hadOldValue {
+			_ = os.Setenv(envName, oldValue)
+			return
+		}
+		_ = os.Unsetenv(envName)
+	})
+	cfg := &TaskConfig{
+		Version: 1,
+		Repositories: []Repository{{
+			URL: "https://example.com/base/",
+			Headers: map[string]string{
+				"Authorization": "Bearer ${" + envName + "}",
+			},
+			Files: []RepositoryFile{{
+				FileName: "a.txt",
+				OutDir:   ".",
+			}},
+		}},
+	}
+
+	_, err := BuildSyncConfig(cfg)
+	if err == nil {
+		t.Fatalf("expected error for undefined header environment variable")
+	}
+	message := err.Error()
+	if !strings.Contains(message, "headers[\"Authorization\"]") {
+		t.Fatalf("expected header key context, got: %v", err)
+	}
+	if !strings.Contains(message, envName) {
+		t.Fatalf("expected undefined env var name, got: %v", err)
 	}
 }

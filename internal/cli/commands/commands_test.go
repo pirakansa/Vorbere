@@ -3,6 +3,7 @@ package commands
 import (
 	"bytes"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -140,12 +141,23 @@ func TestLoadTaskAndRootUsesCWDForRemoteConfig(t *testing.T) {
 		t.Fatalf("Chdir failed: %v", err)
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("version: 1\ntasks:\n  test:\n    run: \"echo ok\"\n"))
-	}))
-	defer server.Close()
+	oldClient := http.DefaultClient
+	t.Cleanup(func() {
+		http.DefaultClient = oldClient
+	})
+	http.DefaultClient = &http.Client{
+		Transport: commandsTestRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body: io.NopCloser(strings.NewReader(
+					"version: 1\ntasks:\n  test:\n    run: \"echo ok\"\n",
+				)),
+				Header: make(http.Header),
+			}, nil
+		}),
+	}
 
-	taskCfg, rootDir, err := loadTaskAndRoot(server.URL)
+	taskCfg, rootDir, err := loadTaskAndRoot("https://example.com/vorbere.yaml")
 	if err != nil {
 		t.Fatalf("loadTaskAndRoot returned error: %v", err)
 	}
@@ -155,6 +167,12 @@ func TestLoadTaskAndRootUsesCWDForRemoteConfig(t *testing.T) {
 	if rootDir != temp {
 		t.Fatalf("expected rootDir=%s, got=%s", temp, rootDir)
 	}
+}
+
+type commandsTestRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f commandsTestRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }
 
 func TestSyncCommandSucceedsWithOverwriteFlag(t *testing.T) {
