@@ -142,3 +142,4 @@ repositories:
 ## TODO
 
 - Add per-file OS/architecture selection (for example `os` / `arch` fields under `repositories[].files[]`) so one manifest can switch download targets without maintaining multiple config files.
+- Add an explicit opt-in field (for example `allow_header_forward_to`) to permit forwarding repository headers on cross-host redirects only to approved hosts.
