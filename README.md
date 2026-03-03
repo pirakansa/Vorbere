@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./docs/vorbere.jpg" width="320" alt="vorbere logo"/>
+</p>
+
 # Vorbere
 
 `vorbere` is a single-binary tool for:
