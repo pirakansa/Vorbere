@@ -1,17 +1,17 @@
 ---
 name: refactor-structural-readability
-description: Use this skill when refactoring existing Go code for readability and maintainability without changing behavior, especially when files are large, responsibilities are mixed, naming is inconsistent, or logic is duplicated. Do not use this skill for feature development, architecture redesign, or behavior-changing refactors.
+description: Use this skill when refactoring existing code for readability and maintainability without changing behavior, especially when files are large, responsibilities are mixed, naming is inconsistent, or logic is duplicated. Do not use this skill for feature development, architecture redesign, or behavior-changing refactors.
 ---
 
-# Refactor Structural Readability (Go)
+# Refactor Structural Readability
 
 ## Goal
 Improve readability and maintainability while preserving behavior.
 
 ## Inputs
-- Target files/packages
+- Target files and related modules/components
 - Current constraints (public API stability, compatibility, coding style)
-- Validation commands (`vorbere run test`, `vorbere run lint`, `vorbere run build`)
+- Validation commands (`vorbere run lint`, `vorbere run test`, `vorbere run build`)
 
 ## Outputs
 - Smaller responsibility-focused files/functions
@@ -33,14 +33,14 @@ Improve readability and maintainability while preserving behavior.
    - Use consistent verb+noun function names.
    - Use path/intent-aware local variable names.
 4. Centralize duplicated logic
-   - Move shared predicates/rules into one package-level source.
+   - Move shared predicates/rules into a single shared internal module/location.
    - Call shared logic from consumers; avoid re-implementations.
 5. Tighten API boundaries
-   - Keep internals unexported unless needed externally.
+   - Keep internals non-public unless needed externally.
    - Expose one high-level API when callers should not know implementation details.
 6. Validate continuously
    - Format modified files.
-   - Run tests, lint, build.
+   - Run lint, tests, and build.
    - Fix only issues related to refactor scope.
 
 ## Safety Rules
@@ -54,7 +54,7 @@ Improve readability and maintainability while preserving behavior.
 - Duplicated decision logic is consolidated.
 - Naming is consistent and self-explanatory.
 - Public API surface is minimal and intentional.
-- `vorbere run test && vorbere run lint && vorbere run build` succeeds.
+- `vorbere run lint && vorbere run test && vorbere run build` succeeds.
 
 ## Quick Checklist
 - [ ] Responsibility split applied

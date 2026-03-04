@@ -17,7 +17,7 @@ Implement approved specifications accurately, with clear traceability from spec 
 - Approved specification document(s)
 - Acceptance criteria and constraints
 - Target codebase and existing tests
-- Validation commands (`vorbere run test`, `vorbere run lint`, `vorbere run build`)
+- Validation commands (`vorbere run lint`, `vorbere run test`, `vorbere run build`)
 
 ## Outputs
 - Minimal code changes implementing required behavior
@@ -40,7 +40,7 @@ Implement approved specifications accurately, with clear traceability from spec 
    - Add or update tests for each implemented requirement.
    - Confirm edge/failure paths defined by the spec.
 5. Run full quality gates and report traceability
-   - Run tests/lint/build.
+   - Run lint, tests, and build.
    - Summarize requirement-to-code/test mapping for review.
    - Report any detected drift against the approved SoT.
 
@@ -60,7 +60,7 @@ Implement approved specifications accurately, with clear traceability from spec 
 - All in-scope requirements are implemented.
 - Acceptance criteria are covered by tests.
 - Compatibility/constraint requirements are respected.
-- `vorbere run test && vorbere run lint && vorbere run build` succeeds.
+- `vorbere run lint && vorbere run test && vorbere run build` succeeds.
 - Reviewers can trace each behavior to spec and tests.
 - No unresolved drift remains between implementation and the approved specification.
 
