@@ -50,70 +50,95 @@ func NormalizeTaskConfig(cfg *TaskConfig) {
 
 func ExpandTaskConfigTemplates(cfg *TaskConfig) error {
 	for name, task := range cfg.Tasks {
-		run, err := expandVarsTemplate(task.Run, cfg.Vars, "tasks."+name+".run")
+		expandedTask, err := expandTaskDefTemplates(name, task, cfg.Vars)
 		if err != nil {
 			return err
 		}
-		task.Run = run
-		cwd, err := expandVarsTemplate(task.CWD, cfg.Vars, "tasks."+name+".cwd")
-		if err != nil {
-			return err
-		}
-		task.CWD = cwd
-		for key, value := range task.Env {
-			expanded, expandErr := expandVarsTemplate(value, cfg.Vars, "tasks."+name+".env."+key)
-			if expandErr != nil {
-				return expandErr
-			}
-			task.Env[key] = expanded
-		}
-		cfg.Tasks[name] = task
+		cfg.Tasks[name] = expandedTask
 	}
 
-	for repoIndex := range cfg.Repositories {
-		repo := cfg.Repositories[repoIndex]
-		urlValue, err := expandVarsTemplate(repo.URL, cfg.Vars, fmt.Sprintf("repositories[%d].url", repoIndex))
+	for repoIndex, repo := range cfg.Repositories {
+		expandedRepo, err := expandRepositoryTemplates(repoIndex, repo, cfg.Vars)
 		if err != nil {
 			return err
 		}
-		repo.URL = urlValue
-		for fileIndex := range repo.Files {
-			file := repo.Files[fileIndex]
-			fileName, fileNameErr := expandVarsTemplate(
-				file.FileName,
-				cfg.Vars,
-				fmt.Sprintf("repositories[%d].files[%d].file_name", repoIndex, fileIndex),
-			)
-			if fileNameErr != nil {
-				return fileNameErr
-			}
-			file.FileName = fileName
-
-			outDir, outDirErr := expandVarsTemplate(
-				file.OutDir,
-				cfg.Vars,
-				fmt.Sprintf("repositories[%d].files[%d].out_dir", repoIndex, fileIndex),
-			)
-			if outDirErr != nil {
-				return outDirErr
-			}
-			file.OutDir = outDir
-
-			rename, renameErr := expandVarsTemplate(
-				file.Rename,
-				cfg.Vars,
-				fmt.Sprintf("repositories[%d].files[%d].rename", repoIndex, fileIndex),
-			)
-			if renameErr != nil {
-				return renameErr
-			}
-			file.Rename = rename
-			repo.Files[fileIndex] = file
-		}
-		cfg.Repositories[repoIndex] = repo
+		cfg.Repositories[repoIndex] = expandedRepo
 	}
 
 	return nil
+}
+
+func expandTaskDefTemplates(taskName string, task TaskDef, vars map[string]string) (TaskDef, error) {
+	run, err := expandVarsTemplate(task.Run, vars, "tasks."+taskName+".run")
+	if err != nil {
+		return TaskDef{}, err
+	}
+	task.Run = run
+
+	cwd, err := expandVarsTemplate(task.CWD, vars, "tasks."+taskName+".cwd")
+	if err != nil {
+		return TaskDef{}, err
+	}
+	task.CWD = cwd
+
+	for key, value := range task.Env {
+		expanded, expandErr := expandVarsTemplate(value, vars, "tasks."+taskName+".env."+key)
+		if expandErr != nil {
+			return TaskDef{}, expandErr
+		}
+		task.Env[key] = expanded
+	}
+	return task, nil
+}
+
+func expandRepositoryTemplates(repoIndex int, repo Repository, vars map[string]string) (Repository, error) {
+	urlValue, err := expandVarsTemplate(repo.URL, vars, fmt.Sprintf("repositories[%d].url", repoIndex))
+	if err != nil {
+		return Repository{}, err
+	}
+	repo.URL = urlValue
+
+	for fileIndex, file := range repo.Files {
+		expandedFile, expandErr := expandRepositoryFileTemplates(repoIndex, fileIndex, file, vars)
+		if expandErr != nil {
+			return Repository{}, expandErr
+		}
+		repo.Files[fileIndex] = expandedFile
+	}
+	return repo, nil
+}
+
+func expandRepositoryFileTemplates(repoIndex, fileIndex int, file RepositoryFile, vars map[string]string) (RepositoryFile, error) {
+	fileName, fileNameErr := expandVarsTemplate(
+		file.FileName,
+		vars,
+		fmt.Sprintf("repositories[%d].files[%d].file_name", repoIndex, fileIndex),
+	)
+	if fileNameErr != nil {
+		return RepositoryFile{}, fileNameErr
+	}
+	file.FileName = fileName
+
+	outDir, outDirErr := expandVarsTemplate(
+		file.OutDir,
+		vars,
+		fmt.Sprintf("repositories[%d].files[%d].out_dir", repoIndex, fileIndex),
+	)
+	if outDirErr != nil {
+		return RepositoryFile{}, outDirErr
+	}
+	file.OutDir = outDir
+
+	rename, renameErr := expandVarsTemplate(
+		file.Rename,
+		vars,
+		fmt.Sprintf("repositories[%d].files[%d].rename", repoIndex, fileIndex),
+	)
+	if renameErr != nil {
+		return RepositoryFile{}, renameErr
+	}
+	file.Rename = rename
+	return file, nil
 }
 
 func IsRemoteConfigLocation(value string) bool {
@@ -221,12 +246,7 @@ func expandVarsTemplate(value string, vars map[string]string, fieldPath string) 
 	})
 
 	if len(missing) > 0 {
-		names := make([]string, 0, len(missing))
-		for name := range missing {
-			names = append(names, name)
-		}
-		sort.Strings(names)
-		return "", fmt.Errorf("%s references undefined var(s): %s", fieldPath, strings.Join(names, ", "))
+		return "", fmt.Errorf("%s references undefined var(s): %s", fieldPath, strings.Join(sortedSetKeys(missing), ", "))
 	}
 
 	invalidKeys := map[string]struct{}{}
@@ -242,18 +262,22 @@ func expandVarsTemplate(value string, vars map[string]string, fieldPath string) 
 		invalidKeys[key] = struct{}{}
 	}
 	if len(invalidKeys) > 0 {
-		keys := make([]string, 0, len(invalidKeys))
-		for key := range invalidKeys {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
 		return "", fmt.Errorf(
 			"%s references invalid var key(s): %s (allowed pattern: [A-Za-z_][A-Za-z0-9_]*)",
 			fieldPath,
-			strings.Join(keys, ", "),
+			strings.Join(sortedSetKeys(invalidKeys), ", "),
 		)
 	}
 	return expanded, nil
+}
+
+func sortedSetKeys(values map[string]struct{}) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func expandRepositoryHeaders(headers map[string]string, repoIndex int) (map[string]string, error) {
@@ -285,12 +309,7 @@ func expandHeaderValue(rawValue string) (string, error) {
 	if len(missing) == 0 {
 		return expanded, nil
 	}
-	names := make([]string, 0, len(missing))
-	for name := range missing {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	return "", fmt.Errorf("references undefined environment variable(s): %s", strings.Join(names, ", "))
+	return "", fmt.Errorf("references undefined environment variable(s): %s", strings.Join(sortedSetKeys(missing), ", "))
 }
 
 func buildSyncEntry(repo Repository, file RepositoryFile, repoIndex, fileIndex int) (string, Source, FileRule, error) {
