@@ -193,10 +193,10 @@ func TestBuildSyncConfigExpandsVarsBeforeEnvironmentExpansion(t *testing.T) {
 			"TOOL_VERSION": "1.2.3",
 		},
 		Repositories: []Repository{{
-			URL: "https://example.com/releases/{{ .vars.TOOL_VERSION }}/",
+			URL: "https://example.com/releases/${{ .vars.TOOL_VERSION }}/",
 			Files: []RepositoryFile{{
-				FileName: "tool-{{ .vars.TOOL_VERSION }}.txt",
-				OutDir:   "$HOME/bin/{{ .vars.TOOL_VERSION }}",
+				FileName: "tool-${{ .vars.TOOL_VERSION }}.txt",
+				OutDir:   "$HOME/bin/${{ .vars.TOOL_VERSION }}",
 			}},
 		}},
 	}
@@ -221,7 +221,7 @@ func TestBuildSyncConfigRejectsUndefinedVars(t *testing.T) {
 		Repositories: []Repository{{
 			URL: "https://example.com/base/",
 			Files: []RepositoryFile{{
-				FileName: "{{ .vars.MISSING }}.txt",
+				FileName: "${{ .vars.MISSING }}.txt",
 				OutDir:   ".",
 			}},
 		}},
@@ -263,7 +263,7 @@ func TestBuildSyncConfigRejectsInvalidVarKeyReference(t *testing.T) {
 		Version: 1,
 		Tasks: map[string]TaskDef{
 			"echo": {
-				Run: "echo {{ .vars.TOOL-VERSION }}",
+				Run: "echo ${{ .vars.TOOL-VERSION }}",
 			},
 		},
 	}

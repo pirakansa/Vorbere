@@ -209,10 +209,10 @@ vars:
   TOOL_VERSION: "1.2.3"
 tasks:
   print:
-    run: "echo {{ .vars.TOOL_VERSION }}"
-    cwd: "bin/{{ .vars.TOOL_VERSION }}"
+    run: "echo ${{ .vars.TOOL_VERSION }}"
+    cwd: "bin/${{ .vars.TOOL_VERSION }}"
     env:
-      TOOL_VERSION: "{{ .vars.TOOL_VERSION }}"
+      TOOL_VERSION: "${{ .vars.TOOL_VERSION }}"
 `
 	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)
@@ -240,7 +240,7 @@ func TestLoadTaskConfigRejectsUndefinedVars(t *testing.T) {
 	content := `version: 1
 tasks:
   print:
-    run: "echo {{ .vars.MISSING }}"
+    run: "echo ${{ .vars.MISSING }}"
 `
 	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
 		t.Fatalf("write config: %v", err)

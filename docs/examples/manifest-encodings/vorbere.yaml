@@ -18,7 +18,7 @@ repositories:
   - _comment: tar.xz full extraction into out_dir with download digest verification
     url: https://example.com/dist/
     files:
-      - file_name: "node-v{{ .vars.NODE_VERSION }}-linux-x64.tar.xz"
+      - file_name: "node-v${{ .vars.NODE_VERSION }}-linux-x64.tar.xz"
         encoding: tar+xz
         download_digest: sha256:<hex-of-downloaded-tar.xz>
         out_dir: $HOME/.local/lib

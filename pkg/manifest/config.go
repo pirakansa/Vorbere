@@ -25,8 +25,8 @@ const (
 )
 
 var headerEnvPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
-var varsTemplatePattern = regexp.MustCompile(`\{\{\s*\.vars\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}`)
-var varsReferencePattern = regexp.MustCompile(`\{\{\s*\.vars\.([^}\s]+)\s*\}\}`)
+var varsTemplatePattern = regexp.MustCompile(`\$\{\{\s*\.vars\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}`)
+var varsReferencePattern = regexp.MustCompile(`\$\{\{\s*\.vars\.([^}\s]+)\s*\}\}`)
 var varsKeyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 type BuildSyncConfigOptions struct {

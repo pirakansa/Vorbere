@@ -50,12 +50,12 @@ vars:
 
 tasks:
   print-node:
-    run: "echo {{ .vars.NODE_VERSION }}"
+    run: "echo ${{ .vars.NODE_VERSION }}"
 
 repositories:
-  - url: "https://example.com/dist/{{ .vars.NODE_VERSION }}/"
+  - url: "https://example.com/dist/${{ .vars.NODE_VERSION }}/"
     files:
-      - file_name: "node-v{{ .vars.NODE_VERSION }}-linux-x64.tar.xz"
+      - file_name: "node-v${{ .vars.NODE_VERSION }}-linux-x64.tar.xz"
         out_dir: "$HOME/.local/lib"
 ```
 

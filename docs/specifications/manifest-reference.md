@@ -37,7 +37,7 @@ repositories:
 ## Top-level fields
 
 - `version`: optional, defaults to `1`
-- `vars`: optional string map used by template expansion (`{{ .vars.NAME }}`), where key names must match `[A-Za-z_][A-Za-z0-9_]*`
+- `vars`: optional string map used by template expansion (`${{ .vars.NAME }}`), where key names must match `[A-Za-z_][A-Za-z0-9_]*`
 - `tasks`: map of task definitions
 - `repositories`: list of remote repositories to fetch artifacts from
 
@@ -59,7 +59,7 @@ Goal:
 Current scope:
 
 - Add top-level `vars` map in `vorbere.yaml`.
-- Support string interpolation in selected string fields by using `{{ .vars.NAME }}`.
+- Support string interpolation in selected string fields by using `${{ .vars.NAME }}`.
 - Fail fast when referenced vars are undefined.
 
 Non-goals (current):
@@ -81,7 +81,7 @@ vars:
 ### Vars key constraints
 
 - `vars` keys must match `[A-Za-z_][A-Za-z0-9_]*`.
-- Keys outside this pattern are invalid for `{{ .vars.KEY }}` references.
+- Keys outside this pattern are invalid for `${{ .vars.KEY }}` references.
 
 ### Expansion targets
 
@@ -118,14 +118,14 @@ vars:
 
 tasks:
   setup-go:
-    run: "go install golang.org/dl/go{{ .vars.GO_VERSION }}@latest && go{{ .vars.GO_VERSION }} download"
+    run: "go install golang.org/dl/go${{ .vars.GO_VERSION }}@latest && go${{ .vars.GO_VERSION }} download"
   print-versions:
-    run: "echo go={{ .vars.GO_VERSION }} node={{ .vars.NODE_VERSION }}"
+    run: "echo go=${{ .vars.GO_VERSION }} node=${{ .vars.NODE_VERSION }}"
 
 repositories:
-  - url: "https://example.com/dist/{{ .vars.NODE_VERSION }}/"
+  - url: "https://example.com/dist/${{ .vars.NODE_VERSION }}/"
     files:
-      - file_name: "node-v{{ .vars.NODE_VERSION }}-linux-x64.tar.xz"
+      - file_name: "node-v${{ .vars.NODE_VERSION }}-linux-x64.tar.xz"
         encoding: tar+xz
         out_dir: "$HOME/.local/lib"
 ```
