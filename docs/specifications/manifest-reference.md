@@ -51,22 +51,7 @@ repositories:
 
 ## Task Vars and Template Expansion
 
-Goal:
-
-- Centralize version and repeated string management in one place.
-- Reuse those values in both `tasks` and `repositories` fields.
-
-Current scope:
-
-- Add top-level `vars` map in `vorbere.yaml`.
-- Support string interpolation in selected string fields by using `${{ .vars.NAME }}`.
-- Fail fast when referenced vars are undefined.
-
-Non-goals (current):
-
-- No loop/matrix execution yet.
-- No expression language beyond direct var lookup.
-- No automatic type coercion for non-string fields.
+This feature provides top-level `vars` and string interpolation with `${{ .vars.NAME }}` for supported fields.
 
 ### Schema
 
@@ -236,7 +221,5 @@ repositories:
 - Add an explicit opt-in field (for example `allow_header_forward_to`) to permit forwarding repository headers on cross-host redirects only to approved hosts.
 - Add task-level precondition and required-variable validation fields (for example `preconditions` / `requires`) so tasks can fail early with clear messages before command execution.
 - Add conditional task execution support (for example `if`) to allow skipping commands based on environment or runtime checks.
-- Extend `vars` with typed values and explicit type validation rules.
-- Add loop/matrix execution features that can expand one task definition into multiple concrete runs.
 - Add deferred cleanup support (for example `defer`) so cleanup commands run even when the main task command fails.
 - Add `.env` loading support (for example `dotenv` at top-level and task-level) with documented precedence against `env` and process environment variables.
