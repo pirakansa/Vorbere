@@ -21,6 +21,7 @@ Recommended minimum edits:
 
 - Replace task commands with your stack (`npm`, `cargo`, `go`, `make`, etc.).
 - Replace repository URLs and file entries with your real paths.
+- Prefer top-level `vars` for shared versions/refs (for example `BOOTKIT_REF`) and reference them with `${{ .vars.NAME }}`.
 - Update persistent mount target paths for your environment.
 
 ## 2. Keep task names stable across repositories

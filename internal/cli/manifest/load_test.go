@@ -201,6 +201,91 @@ repositories:
 	}
 }
 
+func TestLoadTaskConfigExpandsVarsInTaskFields(t *testing.T) {
+	temp := t.TempDir()
+	configPath := filepath.Join(temp, "vorbere.yaml")
+	content := `version: 1
+vars:
+  TOOL_VERSION: "1.2.3"
+tasks:
+  print:
+    run: "echo ${{ .vars.TOOL_VERSION }}"
+    cwd: "bin/${{ .vars.TOOL_VERSION }}"
+    env:
+      TOOL_VERSION: "${{ .vars.TOOL_VERSION }}"
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := LoadTaskConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadTaskConfig returned error: %v", err)
+	}
+	task := cfg.Tasks["print"]
+	if got, want := task.Run, "echo 1.2.3"; got != want {
+		t.Fatalf("unexpected run: got=%q want=%q", got, want)
+	}
+	if got, want := task.CWD, "bin/1.2.3"; got != want {
+		t.Fatalf("unexpected cwd: got=%q want=%q", got, want)
+	}
+	if got, want := task.Env["TOOL_VERSION"], "1.2.3"; got != want {
+		t.Fatalf("unexpected env TOOL_VERSION: got=%q want=%q", got, want)
+	}
+}
+
+func TestLoadTaskConfigRejectsUndefinedVars(t *testing.T) {
+	temp := t.TempDir()
+	configPath := filepath.Join(temp, "vorbere.yaml")
+	content := `version: 1
+tasks:
+  print:
+    run: "echo ${{ .vars.MISSING }}"
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	_, err := LoadTaskConfig(configPath)
+	if err == nil {
+		t.Fatalf("expected undefined var error")
+	}
+	message := err.Error()
+	if !strings.Contains(message, "tasks.print.run") {
+		t.Fatalf("expected field path in error, got: %v", err)
+	}
+	if !strings.Contains(message, "MISSING") {
+		t.Fatalf("expected unresolved key in error, got: %v", err)
+	}
+}
+
+func TestLoadTaskConfigAllowsLiteralBracesInTaskFields(t *testing.T) {
+	temp := t.TempDir()
+	configPath := filepath.Join(temp, "vorbere.yaml")
+	content := `version: 1
+tasks:
+  print:
+    run: "echo '{{keep}}'"
+    env:
+      TOKEN: "{{not-a-vars-template}}"
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := LoadTaskConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadTaskConfig returned error: %v", err)
+	}
+	task := cfg.Tasks["print"]
+	if got, want := task.Run, "echo '{{keep}}'"; got != want {
+		t.Fatalf("unexpected run: got=%q want=%q", got, want)
+	}
+	if got, want := task.Env["TOKEN"], "{{not-a-vars-template}}"; got != want {
+		t.Fatalf("unexpected env TOKEN: got=%q want=%q", got, want)
+	}
+}
+
 func TestIsRemoteConfigLocation(t *testing.T) {
 	if !IsRemoteConfigLocation("https://example.com/vorbere.yaml") {
 		t.Fatalf("expected https URL to be remote config")

@@ -1,5 +1,8 @@
 version: 1
 
+vars:
+  BOOTKIT_REF: "main"
+
 tasks:
   sync:
     run: "vorbere sync"
@@ -27,7 +30,7 @@ tasks:
 
 repositories:
   - _comment: bootkit templates
-    url: https://raw.githubusercontent.com/pirakansa/bootkit/main/
+    url: "https://raw.githubusercontent.com/pirakansa/bootkit/${{ .vars.BOOTKIT_REF }}/"
     files:
       - file_name: AGENTS.md
         out_dir: .

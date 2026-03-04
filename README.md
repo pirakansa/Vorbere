@@ -42,6 +42,23 @@ repositories:
 
 When `--config` uses a remote `http(s)` URL, `repositories[].headers` values are treated as literals (no `${VAR}` expansion).
 
+You can centralize versions with top-level `vars` and reuse them in task and repository fields:
+
+```yaml
+vars:
+  NODE_VERSION: "24.13.1"
+
+tasks:
+  print-node:
+    run: "echo ${{ .vars.NODE_VERSION }}"
+
+repositories:
+  - url: "https://example.com/dist/${{ .vars.NODE_VERSION }}/"
+    files:
+      - file_name: "node-v${{ .vars.NODE_VERSION }}-linux-x64.tar.xz"
+        out_dir: "$HOME/.local/lib"
+```
+
 ## GitHub Action
 
 ```yaml

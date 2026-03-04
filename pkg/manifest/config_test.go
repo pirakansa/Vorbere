@@ -185,6 +185,105 @@ func TestBuildSyncConfigRejectsUnsupportedVersion(t *testing.T) {
 	}
 }
 
+func TestBuildSyncConfigExpandsVarsBeforeEnvironmentExpansion(t *testing.T) {
+	t.Setenv("HOME", "/tmp/vor-home")
+	cfg := &TaskConfig{
+		Version: 1,
+		Vars: map[string]string{
+			"TOOL_VERSION": "1.2.3",
+		},
+		Repositories: []Repository{{
+			URL: "https://example.com/releases/${{ .vars.TOOL_VERSION }}/",
+			Files: []RepositoryFile{{
+				FileName: "tool-${{ .vars.TOOL_VERSION }}.txt",
+				OutDir:   "$HOME/bin/${{ .vars.TOOL_VERSION }}",
+			}},
+		}},
+	}
+
+	resolved, err := BuildSyncConfig(cfg)
+	if err != nil {
+		t.Fatalf("BuildSyncConfig returned error: %v", err)
+	}
+	rule := resolved.Files[0]
+	if got, want := rule.Path, filepath.Join("/tmp/vor-home", "bin", "1.2.3", "tool-1.2.3.txt"); got != want {
+		t.Fatalf("unexpected rule path: got=%q want=%q", got, want)
+	}
+	src := resolved.Sources[rule.Source]
+	if got, want := src.URL, "https://example.com/releases/1.2.3/tool-1.2.3.txt"; got != want {
+		t.Fatalf("unexpected source url: got=%q want=%q", got, want)
+	}
+}
+
+func TestBuildSyncConfigRejectsUndefinedVars(t *testing.T) {
+	cfg := &TaskConfig{
+		Version: 1,
+		Repositories: []Repository{{
+			URL: "https://example.com/base/",
+			Files: []RepositoryFile{{
+				FileName: "${{ .vars.MISSING }}.txt",
+				OutDir:   ".",
+			}},
+		}},
+	}
+
+	_, err := BuildSyncConfig(cfg)
+	if err == nil {
+		t.Fatalf("expected undefined var error")
+	}
+	message := err.Error()
+	if !strings.Contains(message, "repositories[0].files[0].file_name") {
+		t.Fatalf("expected field path in error, got: %v", err)
+	}
+	if !strings.Contains(message, "MISSING") {
+		t.Fatalf("expected unresolved key in error, got: %v", err)
+	}
+}
+
+func TestBuildSyncConfigAllowsLiteralBracesInTaskFields(t *testing.T) {
+	cfg := &TaskConfig{
+		Version: 1,
+		Tasks: map[string]TaskDef{
+			"echo": {
+				Run: "echo '{{not-a-vars-template}}'",
+				Env: map[string]string{
+					"LITERAL": "{{keep-as-is}}",
+				},
+			},
+		},
+	}
+
+	if _, err := BuildSyncConfig(cfg); err != nil {
+		t.Fatalf("expected literal braces to be accepted, got error: %v", err)
+	}
+}
+
+func TestBuildSyncConfigRejectsInvalidVarKeyReference(t *testing.T) {
+	cfg := &TaskConfig{
+		Version: 1,
+		Tasks: map[string]TaskDef{
+			"echo": {
+				Run: "echo ${{ .vars.TOOL-VERSION }}",
+			},
+		},
+	}
+
+	_, err := BuildSyncConfig(cfg)
+	if err == nil {
+		t.Fatalf("expected invalid var key error")
+	}
+	message := err.Error()
+	if !strings.Contains(message, "tasks.echo.run") {
+		t.Fatalf("expected field path in error, got: %v", err)
+	}
+	if !strings.Contains(message, "TOOL-VERSION") {
+		t.Fatalf("expected invalid key in error, got: %v", err)
+	}
+	if !strings.Contains(message, "allowed pattern") {
+		t.Fatalf("expected key pattern hint in error, got: %v", err)
+	}
+}
+
 func TestBuildSyncConfigExpandsRepositoryHeaderEnvironmentVariables(t *testing.T) {
 	t.Setenv("VOR_TOKEN", "secret-token")
 	cfg := &TaskConfig{
