@@ -236,6 +236,7 @@ repositories:
 - Add an explicit opt-in field (for example `allow_header_forward_to`) to permit forwarding repository headers on cross-host redirects only to approved hosts.
 - Add task-level precondition and required-variable validation fields (for example `preconditions` / `requires`) so tasks can fail early with clear messages before command execution.
 - Add conditional task execution support (for example `if`) to allow skipping commands based on environment or runtime checks.
-- Add richer task variable features (for example typed `vars` and loop/matrix execution) to reduce duplicated task definitions.
+- Extend `vars` with typed values and explicit type validation rules.
+- Add loop/matrix execution features that can expand one task definition into multiple concrete runs.
 - Add deferred cleanup support (for example `defer`) so cleanup commands run even when the main task command fails.
 - Add `.env` loading support (for example `dotenv` at top-level and task-level) with documented precedence against `env` and process environment variables.

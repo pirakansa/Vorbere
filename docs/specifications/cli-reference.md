@@ -11,6 +11,8 @@
 Behavior:
 
 - When `--config` is a remote URL, `repositories[].headers` environment variable expansion is disabled.
+- Config loading applies `vars` template expansion (`{{ .vars.NAME }}`) to supported fields in tasks and repositories.
+- Undefined `vars` references are treated as configuration/load errors (exit code `2`).
 
 ## Commands
 
