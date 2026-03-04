@@ -4,6 +4,10 @@ This document defines the `vorbere.yaml` manifest behavior.
 
 Current format: `version: 1`.
 
+Status:
+
+- Implemented behavior: sections without explicit draft markers.
+
 ## vorbere.yaml
 
 ```yaml
@@ -33,6 +37,7 @@ repositories:
 ## Top-level fields
 
 - `version`: optional, defaults to `1`
+- `vars`: optional string map used by template expansion (`{{ .vars.NAME }}`)
 - `tasks`: map of task definitions
 - `repositories`: list of remote repositories to fetch artifacts from
 
@@ -43,6 +48,87 @@ repositories:
 - `tasks.<name>.env`: additional environment variables
 - `tasks.<name>.cwd`: working directory (absolute or relative to config directory)
 - `tasks.<name>.depends_on`: dependency task names
+
+## Task Vars and Template Expansion
+
+Goal:
+
+- Centralize version and repeated string management in one place.
+- Reuse those values in both `tasks` and `repositories` fields.
+
+Current scope:
+
+- Add top-level `vars` map in `vorbere.yaml`.
+- Support string interpolation in selected string fields by using `{{ .vars.NAME }}`.
+- Fail fast when referenced vars are undefined.
+
+Non-goals (current):
+
+- No loop/matrix execution yet.
+- No expression language beyond direct var lookup.
+- No automatic type coercion for non-string fields.
+
+### Schema
+
+```yaml
+version: 1
+
+vars:
+  GO_VERSION: "1.24.2"
+  TOOL_VERSION: "0.3.0"
+```
+
+### Expansion targets
+
+Template expansion is applied to string values in:
+
+- `tasks.<name>.run`
+- `tasks.<name>.cwd`
+- `tasks.<name>.env.<key>`
+- `repositories[].url`
+- `repositories[].files[].file_name`
+- `repositories[].files[].out_dir`
+- `repositories[].files[].rename`
+
+### Processing order
+
+1. Load and validate YAML.
+2. Resolve template expressions with `vars`.
+3. Apply existing environment-variable expansion rules (`$ENV` / `${ENV}` where currently supported).
+4. Execute existing task/sync logic unchanged.
+
+### Error behavior
+
+- If a template references an undefined var, config loading fails with exit code `2`.
+- Error messages include the field path (for example `tasks.build.run`) and the unresolved key.
+
+### Version management example
+
+```yaml
+version: 1
+
+vars:
+  GO_VERSION: "1.24.2"
+  NODE_VERSION: "24.13.1"
+
+tasks:
+  setup-go:
+    run: "go install golang.org/dl/go{{ .vars.GO_VERSION }}@latest && go{{ .vars.GO_VERSION }} download"
+  print-versions:
+    run: "echo go={{ .vars.GO_VERSION }} node={{ .vars.NODE_VERSION }}"
+
+repositories:
+  - url: "https://example.com/dist/{{ .vars.NODE_VERSION }}/"
+    files:
+      - file_name: "node-v{{ .vars.NODE_VERSION }}-linux-x64.tar.xz"
+        encoding: tar+xz
+        out_dir: "$HOME/.local/lib"
+```
+
+Result:
+
+- Version strings are defined once under `vars`.
+- Changing `GO_VERSION` or `NODE_VERSION` updates all referenced tasks and artifact paths.
 
 ## `repositories` fields
 
@@ -145,6 +231,6 @@ repositories:
 - Add an explicit opt-in field (for example `allow_header_forward_to`) to permit forwarding repository headers on cross-host redirects only to approved hosts.
 - Add task-level precondition and required-variable validation fields (for example `preconditions` / `requires`) so tasks can fail early with clear messages before command execution.
 - Add conditional task execution support (for example `if`) to allow skipping commands based on environment or runtime checks.
-- Add richer task variable features (for example typed `vars`, template expansion helpers, and loop/matrix execution) to reduce duplicated task definitions.
+- Add richer task variable features (for example typed `vars` and loop/matrix execution) to reduce duplicated task definitions.
 - Add deferred cleanup support (for example `defer`) so cleanup commands run even when the main task command fails.
 - Add `.env` loading support (for example `dotenv` at top-level and task-level) with documented precedence against `env` and process environment variables.

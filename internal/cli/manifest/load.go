@@ -24,6 +24,9 @@ func LoadTaskConfig(path string) (*TaskConfig, error) {
 		return nil, err
 	}
 	pkgmanifest.NormalizeTaskConfig(&cfg)
+	if err := pkgmanifest.ExpandTaskConfigTemplates(&cfg); err != nil {
+		return nil, err
+	}
 	return &cfg, nil
 }
 

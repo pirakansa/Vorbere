@@ -25,6 +25,7 @@ const (
 )
 
 var headerEnvPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
+var varsTemplatePattern = regexp.MustCompile(`\{\{\s*\.vars\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}`)
 
 type BuildSyncConfigOptions struct {
 	ExpandRepositoryHeaderEnv bool
@@ -34,12 +35,83 @@ func NormalizeTaskConfig(cfg *TaskConfig) {
 	if cfg.Version == 0 {
 		cfg.Version = DefaultTaskConfigVersion
 	}
+	if cfg.Vars == nil {
+		cfg.Vars = map[string]string{}
+	}
 	if cfg.Tasks == nil {
 		cfg.Tasks = map[string]TaskDef{}
 	}
 	if cfg.Repositories == nil {
 		cfg.Repositories = []Repository{}
 	}
+}
+
+func ExpandTaskConfigTemplates(cfg *TaskConfig) error {
+	for name, task := range cfg.Tasks {
+		run, err := expandVarsTemplate(task.Run, cfg.Vars, "tasks."+name+".run")
+		if err != nil {
+			return err
+		}
+		task.Run = run
+		cwd, err := expandVarsTemplate(task.CWD, cfg.Vars, "tasks."+name+".cwd")
+		if err != nil {
+			return err
+		}
+		task.CWD = cwd
+		for key, value := range task.Env {
+			expanded, expandErr := expandVarsTemplate(value, cfg.Vars, "tasks."+name+".env."+key)
+			if expandErr != nil {
+				return expandErr
+			}
+			task.Env[key] = expanded
+		}
+		cfg.Tasks[name] = task
+	}
+
+	for repoIndex := range cfg.Repositories {
+		repo := cfg.Repositories[repoIndex]
+		urlValue, err := expandVarsTemplate(repo.URL, cfg.Vars, fmt.Sprintf("repositories[%d].url", repoIndex))
+		if err != nil {
+			return err
+		}
+		repo.URL = urlValue
+		for fileIndex := range repo.Files {
+			file := repo.Files[fileIndex]
+			fileName, fileNameErr := expandVarsTemplate(
+				file.FileName,
+				cfg.Vars,
+				fmt.Sprintf("repositories[%d].files[%d].file_name", repoIndex, fileIndex),
+			)
+			if fileNameErr != nil {
+				return fileNameErr
+			}
+			file.FileName = fileName
+
+			outDir, outDirErr := expandVarsTemplate(
+				file.OutDir,
+				cfg.Vars,
+				fmt.Sprintf("repositories[%d].files[%d].out_dir", repoIndex, fileIndex),
+			)
+			if outDirErr != nil {
+				return outDirErr
+			}
+			file.OutDir = outDir
+
+			rename, renameErr := expandVarsTemplate(
+				file.Rename,
+				cfg.Vars,
+				fmt.Sprintf("repositories[%d].files[%d].rename", repoIndex, fileIndex),
+			)
+			if renameErr != nil {
+				return renameErr
+			}
+			file.Rename = rename
+			repo.Files[fileIndex] = file
+		}
+		cfg.Repositories[repoIndex] = repo
+	}
+
+	return nil
 }
 
 func IsRemoteConfigLocation(value string) bool {
@@ -89,6 +161,10 @@ func BuildSyncConfig(taskCfg *TaskConfig) (*SyncConfig, error) {
 }
 
 func BuildSyncConfigWithOptions(taskCfg *TaskConfig, opts BuildSyncConfigOptions) (*SyncConfig, error) {
+	NormalizeTaskConfig(taskCfg)
+	if err := ExpandTaskConfigTemplates(taskCfg); err != nil {
+		return nil, err
+	}
 	if err := ValidateTaskConfig(taskCfg); err != nil {
 		return nil, err
 	}
@@ -120,6 +196,40 @@ func BuildSyncConfigWithOptions(taskCfg *TaskConfig, opts BuildSyncConfigOptions
 	}
 
 	return cfg, nil
+}
+
+func expandVarsTemplate(value string, vars map[string]string, fieldPath string) (string, error) {
+	if value == "" {
+		return value, nil
+	}
+
+	missing := map[string]struct{}{}
+	expanded := varsTemplatePattern.ReplaceAllStringFunc(value, func(match string) string {
+		matches := varsTemplatePattern.FindStringSubmatch(match)
+		if len(matches) < 2 {
+			return match
+		}
+		name := matches[1]
+		resolved, ok := vars[name]
+		if !ok {
+			missing[name] = struct{}{}
+			return ""
+		}
+		return resolved
+	})
+
+	if len(missing) > 0 {
+		names := make([]string, 0, len(missing))
+		for name := range missing {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		return "", fmt.Errorf("%s references undefined var(s): %s", fieldPath, strings.Join(names, ", "))
+	}
+	if strings.Contains(expanded, "{{") || strings.Contains(expanded, "}}") {
+		return "", fmt.Errorf("%s contains unsupported template expression", fieldPath)
+	}
+	return expanded, nil
 }
 
 func expandRepositoryHeaders(headers map[string]string, repoIndex int) (map[string]string, error) {
