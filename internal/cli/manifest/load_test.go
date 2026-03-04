@@ -259,6 +259,33 @@ tasks:
 	}
 }
 
+func TestLoadTaskConfigAllowsLiteralBracesInTaskFields(t *testing.T) {
+	temp := t.TempDir()
+	configPath := filepath.Join(temp, "vorbere.yaml")
+	content := `version: 1
+tasks:
+  print:
+    run: "echo '{{keep}}'"
+    env:
+      TOKEN: "{{not-a-vars-template}}"
+`
+	if err := os.WriteFile(configPath, []byte(content), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	cfg, err := LoadTaskConfig(configPath)
+	if err != nil {
+		t.Fatalf("LoadTaskConfig returned error: %v", err)
+	}
+	task := cfg.Tasks["print"]
+	if got, want := task.Run, "echo '{{keep}}'"; got != want {
+		t.Fatalf("unexpected run: got=%q want=%q", got, want)
+	}
+	if got, want := task.Env["TOKEN"], "{{not-a-vars-template}}"; got != want {
+		t.Fatalf("unexpected env TOKEN: got=%q want=%q", got, want)
+	}
+}
+
 func TestIsRemoteConfigLocation(t *testing.T) {
 	if !IsRemoteConfigLocation("https://example.com/vorbere.yaml") {
 		t.Fatalf("expected https URL to be remote config")

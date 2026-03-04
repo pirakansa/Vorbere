@@ -240,6 +240,50 @@ func TestBuildSyncConfigRejectsUndefinedVars(t *testing.T) {
 	}
 }
 
+func TestBuildSyncConfigAllowsLiteralBracesInTaskFields(t *testing.T) {
+	cfg := &TaskConfig{
+		Version: 1,
+		Tasks: map[string]TaskDef{
+			"echo": {
+				Run: "echo '{{not-a-vars-template}}'",
+				Env: map[string]string{
+					"LITERAL": "{{keep-as-is}}",
+				},
+			},
+		},
+	}
+
+	if _, err := BuildSyncConfig(cfg); err != nil {
+		t.Fatalf("expected literal braces to be accepted, got error: %v", err)
+	}
+}
+
+func TestBuildSyncConfigRejectsInvalidVarKeyReference(t *testing.T) {
+	cfg := &TaskConfig{
+		Version: 1,
+		Tasks: map[string]TaskDef{
+			"echo": {
+				Run: "echo {{ .vars.TOOL-VERSION }}",
+			},
+		},
+	}
+
+	_, err := BuildSyncConfig(cfg)
+	if err == nil {
+		t.Fatalf("expected invalid var key error")
+	}
+	message := err.Error()
+	if !strings.Contains(message, "tasks.echo.run") {
+		t.Fatalf("expected field path in error, got: %v", err)
+	}
+	if !strings.Contains(message, "TOOL-VERSION") {
+		t.Fatalf("expected invalid key in error, got: %v", err)
+	}
+	if !strings.Contains(message, "allowed pattern") {
+		t.Fatalf("expected key pattern hint in error, got: %v", err)
+	}
+}
+
 func TestBuildSyncConfigExpandsRepositoryHeaderEnvironmentVariables(t *testing.T) {
 	t.Setenv("VOR_TOKEN", "secret-token")
 	cfg := &TaskConfig{

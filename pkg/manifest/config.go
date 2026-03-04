@@ -26,6 +26,8 @@ const (
 
 var headerEnvPattern = regexp.MustCompile(`\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
 var varsTemplatePattern = regexp.MustCompile(`\{\{\s*\.vars\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}`)
+var varsReferencePattern = regexp.MustCompile(`\{\{\s*\.vars\.([^}\s]+)\s*\}\}`)
+var varsKeyPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 type BuildSyncConfigOptions struct {
 	ExpandRepositoryHeaderEnv bool
@@ -226,8 +228,30 @@ func expandVarsTemplate(value string, vars map[string]string, fieldPath string) 
 		sort.Strings(names)
 		return "", fmt.Errorf("%s references undefined var(s): %s", fieldPath, strings.Join(names, ", "))
 	}
-	if strings.Contains(expanded, "{{") || strings.Contains(expanded, "}}") {
-		return "", fmt.Errorf("%s contains unsupported template expression", fieldPath)
+
+	invalidKeys := map[string]struct{}{}
+	refs := varsReferencePattern.FindAllStringSubmatch(expanded, -1)
+	for _, ref := range refs {
+		if len(ref) < 2 {
+			continue
+		}
+		key := ref[1]
+		if varsKeyPattern.MatchString(key) {
+			continue
+		}
+		invalidKeys[key] = struct{}{}
+	}
+	if len(invalidKeys) > 0 {
+		keys := make([]string, 0, len(invalidKeys))
+		for key := range invalidKeys {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		return "", fmt.Errorf(
+			"%s references invalid var key(s): %s (allowed pattern: [A-Za-z_][A-Za-z0-9_]*)",
+			fieldPath,
+			strings.Join(keys, ", "),
+		)
 	}
 	return expanded, nil
 }

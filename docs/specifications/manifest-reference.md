@@ -37,7 +37,7 @@ repositories:
 ## Top-level fields
 
 - `version`: optional, defaults to `1`
-- `vars`: optional string map used by template expansion (`{{ .vars.NAME }}`)
+- `vars`: optional string map used by template expansion (`{{ .vars.NAME }}`), where key names must match `[A-Za-z_][A-Za-z0-9_]*`
 - `tasks`: map of task definitions
 - `repositories`: list of remote repositories to fetch artifacts from
 
@@ -77,6 +77,11 @@ vars:
   GO_VERSION: "1.24.2"
   TOOL_VERSION: "0.3.0"
 ```
+
+### Vars key constraints
+
+- `vars` keys must match `[A-Za-z_][A-Za-z0-9_]*`.
+- Keys outside this pattern are invalid for `{{ .vars.KEY }}` references.
 
 ### Expansion targets
 
