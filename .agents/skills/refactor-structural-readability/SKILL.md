@@ -11,7 +11,7 @@ Improve readability and maintainability while preserving behavior.
 ## Inputs
 - Target files and related modules/components
 - Current constraints (public API stability, compatibility, coding style)
-- Validation commands (`vorbere run lint`, `vorbere run test`, `vorbere run build`)
+- Validation commands (`vorbere run check`, `vorbere run test`, `vorbere run build`)
 
 ## Outputs
 - Smaller responsibility-focused files/functions
@@ -54,7 +54,7 @@ Improve readability and maintainability while preserving behavior.
 - Duplicated decision logic is consolidated.
 - Naming is consistent and self-explanatory.
 - Public API surface is minimal and intentional.
-- `vorbere run lint && vorbere run test && vorbere run build` succeeds.
+- `vorbere run check && vorbere run test && vorbere run build` succeeds.
 
 ## Quick Checklist
 - [ ] Responsibility split applied

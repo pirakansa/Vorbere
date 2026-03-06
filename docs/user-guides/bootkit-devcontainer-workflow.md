@@ -30,7 +30,7 @@ Use the same task names everywhere:
 
 - `sync`
 - `fmt`
-- `lint`
+- `check`
 - `test`
 - `build`
 - `ci`
@@ -68,7 +68,7 @@ Examples:
 
 ```bash
 vorbere run fmt
-vorbere run lint
+vorbere run check
 vorbere run test
 vorbere run ci
 ```

@@ -20,7 +20,7 @@ tasks:
     env:
       FOO: bar
     cwd: subdir
-    depends_on: [lint]
+    depends_on: [check]
 
 repositories:
   - _comment: bootkit files

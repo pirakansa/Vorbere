@@ -26,8 +26,7 @@ Rule of thumb:
 
 ## Setup Steps
 
-* Confirm you have write permission under `go env GOPATH` and that `go install` works.
-* On the first run, execute `go mod tidy` at the project root to make sure dependencies are intact.
+* On the first run, execute `vorbere run setup` to confirm `go install` works and prepare dependencies.
 * Task runner: `vorbere.yaml` via `vorbere run <task>` (CI uses the tasks described later).
 
 ---
@@ -36,7 +35,7 @@ Rule of thumb:
 
 * Build: `vorbere run build`
 * Test: `vorbere run test`
-* Lint: `vorbere run lint`
+* Check: `vorbere run check`
 * Cleanup: remove build artifacts (such as `./bin/`) with `rm -rf ./bin/` (equivalent to `vorbere run clean`).
 * For CLI usage and command examples, see the Usage section in README.md.
 
@@ -80,8 +79,7 @@ We follow the **Standard Go Project Layout**.
 
 ## Coding Standards
 
-* Always run `vorbere run staticcheck` so the code remains `staticcheck`-formatted.
-* Run `vorbere run lint` for static checks and ensure there are no warnings (CI requirement).
+* Always run `vorbere run check` and ensure all included static checks pass with no warnings (CI requirement).
 * Handle errors by returning `error`; do not silently discard them with `fmt.Println`. Prefer `fmt.Fprintf(os.Stderr, ...)` for user-facing messages.
 * Package names must be lowercase words (no snake_case). Exported identifiers use UpperCamelCase.
 * Extract magic numbers and hard-coded URLs into constants with meaningful names within the module.
@@ -97,9 +95,8 @@ We follow the **Standard Go Project Layout**.
 
 ### Static Analysis / Lint / Vulnerability Scanning
 
-* Static analysis: `vorbere run staticcheck`
-* Code quality: `vorbere run vet`
-* Vulnerability scanning: `vorbere run govulncheck`
+* Run `vorbere run check` as the default entry point for static analysis, linting, vulnerability scanning, and related verification.
+* If needed, use underlying component commands only to investigate or isolate specific failures (for example, `vorbere run vulnerability`).
 
 ---
 
@@ -107,11 +104,11 @@ We follow the **Standard Go Project Layout**.
 
 GitHub Actions (`.github/workflows/go.yml`) runs the following:
 
-* `vorbere run lint`
+* `vorbere run check`
 * `vorbere run test`
 * `vorbere run build`
 
-Confirm `vorbere run lint` / `vorbere run test` / `vorbere run build` succeed locally before opening a PR. If they fail, format and validate locally, then rerun.
+Confirm `vorbere run check` / `vorbere run test` / `vorbere run build` succeed locally before opening a PR. If they fail, format and validate locally, then rerun.
 
 ---
 
@@ -128,7 +125,7 @@ Confirm `vorbere run lint` / `vorbere run test` / `vorbere run build` succeed lo
 
 * If multiple `AGENTS.md` files exist, reference the one closest to your working directory (this repository only has the top-level file).
 * When instructions conflict, prioritize explicit user prompts and clarify any uncertainties.
-* Before and after your work, ensure `vorbere run lint`, `vorbere run test`, and `vorbere run build` all succeed; report the cause and fix if any of them fail.
+* Before and after your work, ensure `vorbere run check`, `vorbere run test`, and `vorbere run build` all succeed; report the cause and fix if any of them fail.
 
 
 ---
@@ -192,7 +189,7 @@ For structured authoring (template, checklist), use the skill: `conventional-com
 * Add dependencies with `go get <module>@<version>` and keep `go.mod` / `go.sum` in sync.
 * Remove unused dependencies with `go mod tidy`.
 * For dependency updates, state the target module and reason in the PR body.
-* Check external dependencies with `vorbere run govulncheck` and report as needed.
+* Check external dependencies with `vorbere run vulnerability` and report as needed.
 
 ---
 
@@ -200,24 +197,6 @@ For structured authoring (template, checklist), use the skill: `conventional-com
 
 * Follow **SemVer** for versioning.
 * Tag new releases with `git tag vX.Y.Z` and verify `vorbere run release` outputs.
-* Update CHANGELOG.md and reflect the changes in the release notes (include generators in the PR if they were used).
-
-### CHANGELOG.md Policy
-
-* **Sections**: Follow `[Keep a Changelog]` categories - `Added / Changed / Fixed / Deprecated / Removed / Security`.
-* **Language**: English.
-* **Writing Principles**:
-  * Describe "what changes for the user" in one sentence; include implementation details only when needed.
-  * Emphasize **breaking changes** in bold and provide migration steps.
-  * Include PR/Issue numbers when possible (e.g., `(#123)`).
-* **Workflow**:
-  1. Add entries to the `Unreleased` section in feature PRs.
-  2. Update the version number and date in release PRs.
-  3. After tagging, copy the relevant section into the release notes.
-* **Links (recommended)**:
-  * Add comparison links at the end of the file.
-* **Supporting Tools** (optional):
-  * Use tools like `git-cliff` or `conventional-changelog` to draft entries, then edit manually.
 
 ---
 
@@ -235,6 +214,6 @@ For structured authoring (template, checklist), use the skill: `pr-description-a
 
 ## Checklist
 
-* [ ] `vorbere run lint`
+* [ ] `vorbere run check`
 * [ ] `vorbere run test`
 * [ ] `vorbere run build`

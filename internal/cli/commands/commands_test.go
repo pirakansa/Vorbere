@@ -72,7 +72,7 @@ func TestInitTemplateContainsRepositories(t *testing.T) {
 	if err != nil {
 		t.Fatalf("vorbere.yaml missing: %v", err)
 	}
-	if !containsAll(string(b), []string{"version: 1", "repositories:", "file_name:"}) {
+	if !containsAll(string(b), []string{"version: 1", "setup:", "check:", "depends_on: [setup, check, test, build]", "repositories:", "file_name:"}) {
 		t.Fatalf("unexpected template content:\n%s", string(b))
 	}
 }

@@ -12,9 +12,9 @@ tasks:
     run: "npm run format"
     desc: format JS/TS sources
 
-  lint:
+  check:
     run: "npm run lint"
-    desc: run linter
+    desc: run static checks
 
   test:
     run: "npm test"
@@ -25,7 +25,7 @@ tasks:
     desc: build project artifacts
 
   ci:
-    depends_on: [sync, fmt, lint, test, build]
+    depends_on: [sync, fmt, check, test, build]
     desc: run full local CI flow
 
 repositories:
