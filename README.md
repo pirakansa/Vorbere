@@ -7,7 +7,7 @@
 `vorbere` is a single-binary tool for:
 
 - manifest-driven file sync
-- language-agnostic task execution (`run test`, `run lint`, `run ci`)
+- language-agnostic task execution (`run test`, `run check`, `run ci`)
 
 Manifest format is `version: 1` with `repositories[].files[]`.
 
@@ -66,7 +66,7 @@ repositories:
   with:
     version: v0.3.0
 
-- run: vorbere --config vorbere.yaml run lint
+- run: vorbere --config vorbere.yaml run check
 - run: vorbere --config vorbere.yaml run test
 - run: vorbere --config vorbere.yaml run build
 ```
@@ -82,7 +82,7 @@ For example, replace Makefile-based CI steps with:
   with:
     version: v0.3.0
 
-- run: vorbere --config vorbere.yaml run lint
+- run: vorbere --config vorbere.yaml run check
 - run: vorbere --config vorbere.yaml run test
 - run: vorbere --config vorbere.yaml run build
 ```

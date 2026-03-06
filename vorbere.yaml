@@ -93,12 +93,12 @@ tasks:
     run: go tool govulncheck -tags "${{ .vars.RELEASE_TAGS }}" ./...
     desc: run govulncheck
 
-  lint:
+  check:
     depends_on: [vet, staticcheck]
-    desc: run lint checks
+    desc: run static checks
 
   test:
-    depends_on: [lint, build]
+    depends_on: [check, build]
     run: go test -race -tags="${{ .vars.RELEASE_TAGS }}" -v ./...
     desc: run tests
 

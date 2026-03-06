@@ -44,9 +44,9 @@ tasks:
   fmt:
     run: "echo define formatter command"
     desc: format code
-  lint:
-    run: "echo define linter command"
-    desc: lint code
+  check:
+    run: "echo define static checks command"
+    desc: run static checks
   test:
     run: "echo define test command"
     desc: run tests
@@ -54,7 +54,7 @@ tasks:
     run: "echo define build command"
     desc: build artifacts
   ci:
-    depends_on: [fmt, lint, test, build]
+    depends_on: [fmt, check, test, build]
 repositories:
   - _comment: example repository
     url: https://example.com/

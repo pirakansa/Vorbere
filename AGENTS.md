@@ -36,7 +36,7 @@ Rule of thumb:
 
 * Build: `vorbere run build`
 * Test: `vorbere run test`
-* Lint: `vorbere run lint`
+* Check: `vorbere run check`
 * Cleanup: remove build artifacts (such as `./bin/`) with `rm -rf ./bin/` (equivalent to `vorbere run clean`).
 * For CLI usage and command examples, see the Usage section in README.md.
 
@@ -81,7 +81,7 @@ We follow the **Standard Go Project Layout**.
 ## Coding Standards
 
 * Always run `vorbere run staticcheck` so the code remains `staticcheck`-formatted.
-* Run `vorbere run lint` for static checks and ensure there are no warnings (CI requirement).
+* Run `vorbere run check` for static checks and ensure there are no warnings (CI requirement).
 * Handle errors by returning `error`; do not silently discard them with `fmt.Println`. Prefer `fmt.Fprintf(os.Stderr, ...)` for user-facing messages.
 * Package names must be lowercase words (no snake_case). Exported identifiers use UpperCamelCase.
 * Extract magic numbers and hard-coded URLs into constants with meaningful names within the module.
@@ -107,11 +107,11 @@ We follow the **Standard Go Project Layout**.
 
 GitHub Actions (`.github/workflows/go.yml`) runs the following:
 
-* `vorbere run lint`
+* `vorbere run check`
 * `vorbere run test`
 * `vorbere run build`
 
-Confirm `vorbere run lint` / `vorbere run test` / `vorbere run build` succeed locally before opening a PR. If they fail, format and validate locally, then rerun.
+Confirm `vorbere run check` / `vorbere run test` / `vorbere run build` succeed locally before opening a PR. If they fail, format and validate locally, then rerun.
 
 ---
 
@@ -128,7 +128,7 @@ Confirm `vorbere run lint` / `vorbere run test` / `vorbere run build` succeed lo
 
 * If multiple `AGENTS.md` files exist, reference the one closest to your working directory (this repository only has the top-level file).
 * When instructions conflict, prioritize explicit user prompts and clarify any uncertainties.
-* Before and after your work, ensure `vorbere run lint`, `vorbere run test`, and `vorbere run build` all succeed; report the cause and fix if any of them fail.
+* Before and after your work, ensure `vorbere run check`, `vorbere run test`, and `vorbere run build` all succeed; report the cause and fix if any of them fail.
 
 
 ---
@@ -235,6 +235,6 @@ For structured authoring (template, checklist), use the skill: `pr-description-a
 
 ## Checklist
 
-* [ ] `vorbere run lint`
+* [ ] `vorbere run check`
 * [ ] `vorbere run test`
 * [ ] `vorbere run build`
