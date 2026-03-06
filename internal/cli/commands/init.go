@@ -41,9 +41,9 @@ func writeIfNotExists(path, content string) error {
 func taskTemplate() string {
 	return `version: 1
 tasks:
-  fmt:
-    run: "echo define formatter command"
-    desc: format code
+  setup:
+    run: "echo define setup command"
+    desc: prepare the workspace
   check:
     run: "echo define static checks command"
     desc: run static checks
@@ -54,7 +54,7 @@ tasks:
     run: "echo define build command"
     desc: build artifacts
   ci:
-    depends_on: [fmt, check, test, build]
+    depends_on: [setup, check, test, build]
 repositories:
   - _comment: example repository
     url: https://example.com/

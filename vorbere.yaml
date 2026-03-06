@@ -12,6 +12,15 @@ tasks:
     depends_on: [build]
     desc: default target equivalent
 
+  install:
+    run: go install ${{ .vars.MAIN_PACKAGE }}
+    desc: install CLI into GOPATH/bin
+
+  setup:
+    depends_on: [install]
+    run: go mod tidy
+    desc: prepare local Go dependencies and installability
+
   build:
     run: |
       mkdir -p ${{ .vars.BIN_DIR }}/host

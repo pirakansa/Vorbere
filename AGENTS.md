@@ -26,8 +26,7 @@ Rule of thumb:
 
 ## Setup Steps
 
-* Confirm you have write permission under `go env GOPATH` and that `go install` works.
-* On the first run, execute `go mod tidy` at the project root to make sure dependencies are intact.
+* On the first run, execute `vorbere run setup` to confirm `go install` works and prepare dependencies.
 * Task runner: `vorbere.yaml` via `vorbere run <task>` (CI uses the tasks described later).
 
 ---
