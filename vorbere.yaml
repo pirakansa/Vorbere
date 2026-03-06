@@ -89,7 +89,7 @@ tasks:
     run: go tool staticcheck ./...
     desc: run staticcheck
 
-  govulncheck:
+  vulnerability:
     run: go tool govulncheck -tags "${{ .vars.RELEASE_TAGS }}" ./...
     desc: run govulncheck
 

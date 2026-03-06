@@ -80,8 +80,7 @@ We follow the **Standard Go Project Layout**.
 
 ## Coding Standards
 
-* Always run `vorbere run staticcheck` so the code remains `staticcheck`-formatted.
-* Run `vorbere run check` for static checks and ensure there are no warnings (CI requirement).
+* Always run `vorbere run check` and ensure all included static checks pass with no warnings (CI requirement).
 * Handle errors by returning `error`; do not silently discard them with `fmt.Println`. Prefer `fmt.Fprintf(os.Stderr, ...)` for user-facing messages.
 * Package names must be lowercase words (no snake_case). Exported identifiers use UpperCamelCase.
 * Extract magic numbers and hard-coded URLs into constants with meaningful names within the module.
@@ -97,9 +96,8 @@ We follow the **Standard Go Project Layout**.
 
 ### Static Analysis / Lint / Vulnerability Scanning
 
-* Static analysis: `vorbere run staticcheck`
-* Code quality: `vorbere run vet`
-* Vulnerability scanning: `vorbere run govulncheck`
+* Run `vorbere run check` as the default entry point for static analysis, linting, vulnerability scanning, and related verification.
+* If needed, use underlying component commands only to investigate or isolate specific failures (for example, `vorbere run vulnerability`).
 
 ---
 
@@ -192,7 +190,7 @@ For structured authoring (template, checklist), use the skill: `conventional-com
 * Add dependencies with `go get <module>@<version>` and keep `go.mod` / `go.sum` in sync.
 * Remove unused dependencies with `go mod tidy`.
 * For dependency updates, state the target module and reason in the PR body.
-* Check external dependencies with `vorbere run govulncheck` and report as needed.
+* Check external dependencies with `vorbere run vulnerability` and report as needed.
 
 ---
 
@@ -200,24 +198,6 @@ For structured authoring (template, checklist), use the skill: `conventional-com
 
 * Follow **SemVer** for versioning.
 * Tag new releases with `git tag vX.Y.Z` and verify `vorbere run release` outputs.
-* Update CHANGELOG.md and reflect the changes in the release notes (include generators in the PR if they were used).
-
-### CHANGELOG.md Policy
-
-* **Sections**: Follow `[Keep a Changelog]` categories - `Added / Changed / Fixed / Deprecated / Removed / Security`.
-* **Language**: English.
-* **Writing Principles**:
-  * Describe "what changes for the user" in one sentence; include implementation details only when needed.
-  * Emphasize **breaking changes** in bold and provide migration steps.
-  * Include PR/Issue numbers when possible (e.g., `(#123)`).
-* **Workflow**:
-  1. Add entries to the `Unreleased` section in feature PRs.
-  2. Update the version number and date in release PRs.
-  3. After tagging, copy the relevant section into the release notes.
-* **Links (recommended)**:
-  * Add comparison links at the end of the file.
-* **Supporting Tools** (optional):
-  * Use tools like `git-cliff` or `conventional-changelog` to draft entries, then edit manually.
 
 ---
 
