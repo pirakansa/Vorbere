@@ -1,5 +1,12 @@
 version: 1
 
+vars:
+  BIN_DIR: ./bin
+  MAIN_PACKAGE: ./cmd/vorbere
+  RELEASE_TAGS: osusergo netgo
+  DEBUG_TAGS: debug osusergo netgo
+  LDFLAGS: -s -w -X main.Version=$(cat VERSION)
+
 tasks:
   all:
     depends_on: [build]
@@ -7,55 +14,48 @@ tasks:
 
   build:
     run: |
-      mkdir -p ./bin/host
-      VERSION="$(cat VERSION)"
-      go build -tags="osusergo netgo" -ldflags="-s -w -X main.Version=${VERSION}" -trimpath -o ./bin/host/ ./cmd/vorbere
+      mkdir -p ${{ .vars.BIN_DIR }}/host
+      go build -tags="${{ .vars.RELEASE_TAGS }}" -ldflags="${{ .vars.LDFLAGS }}" -trimpath -o ${{ .vars.BIN_DIR }}/host/ ${{ .vars.MAIN_PACKAGE }}
     desc: build host binary
 
   run:
-    run: go run -tags="osusergo netgo" ./cmd/vorbere
+    run: go run -tags="${{ .vars.RELEASE_TAGS }}" ${{ .vars.MAIN_PACKAGE }}
     desc: run CLI
 
   linux-amd64:
     run: |
-      mkdir -p ./bin/linux-amd64
-      VERSION="$(cat VERSION)"
-      GOOS=linux GOARCH=amd64 go build -tags="osusergo netgo" -ldflags="-s -w -X main.Version=${VERSION}" -trimpath -o ./bin/linux-amd64/ ./cmd/vorbere
+      mkdir -p ${{ .vars.BIN_DIR }}/linux-amd64
+      GOOS=linux GOARCH=amd64 go build -tags="${{ .vars.RELEASE_TAGS }}" -ldflags="${{ .vars.LDFLAGS }}" -trimpath -o ${{ .vars.BIN_DIR }}/linux-amd64/ ${{ .vars.MAIN_PACKAGE }}
     desc: build linux amd64 binary
 
   linux-arm:
     run: |
-      mkdir -p ./bin/linux-arm
-      VERSION="$(cat VERSION)"
-      GOOS=linux GOARCH=arm go build -tags="osusergo netgo" -ldflags="-s -w -X main.Version=${VERSION}" -trimpath -o ./bin/linux-arm/ ./cmd/vorbere
+      mkdir -p ${{ .vars.BIN_DIR }}/linux-arm
+      GOOS=linux GOARCH=arm go build -tags="${{ .vars.RELEASE_TAGS }}" -ldflags="${{ .vars.LDFLAGS }}" -trimpath -o ${{ .vars.BIN_DIR }}/linux-arm/ ${{ .vars.MAIN_PACKAGE }}
     desc: build linux arm binary
 
   linux-arm64:
     run: |
-      mkdir -p ./bin/linux-arm64
-      VERSION="$(cat VERSION)"
-      GOOS=linux GOARCH=arm64 go build -tags="osusergo netgo" -ldflags="-s -w -X main.Version=${VERSION}" -trimpath -o ./bin/linux-arm64/ ./cmd/vorbere
+      mkdir -p ${{ .vars.BIN_DIR }}/linux-arm64
+      GOOS=linux GOARCH=arm64 go build -tags="${{ .vars.RELEASE_TAGS }}" -ldflags="${{ .vars.LDFLAGS }}" -trimpath -o ${{ .vars.BIN_DIR }}/linux-arm64/ ${{ .vars.MAIN_PACKAGE }}
     desc: build linux arm64 binary
 
   darwin-amd64:
     run: |
-      mkdir -p ./bin/darwin-amd64
-      VERSION="$(cat VERSION)"
-      GOOS=darwin GOARCH=amd64 go build -tags="osusergo netgo" -ldflags="-s -w -X main.Version=${VERSION}" -trimpath -o ./bin/darwin-amd64/ ./cmd/vorbere
+      mkdir -p ${{ .vars.BIN_DIR }}/darwin-amd64
+      GOOS=darwin GOARCH=amd64 go build -tags="${{ .vars.RELEASE_TAGS }}" -ldflags="${{ .vars.LDFLAGS }}" -trimpath -o ${{ .vars.BIN_DIR }}/darwin-amd64/ ${{ .vars.MAIN_PACKAGE }}
     desc: build darwin amd64 binary
 
   darwin-arm64:
     run: |
-      mkdir -p ./bin/darwin-arm64
-      VERSION="$(cat VERSION)"
-      GOOS=darwin GOARCH=arm64 go build -tags="osusergo netgo" -ldflags="-s -w -X main.Version=${VERSION}" -trimpath -o ./bin/darwin-arm64/ ./cmd/vorbere
+      mkdir -p ${{ .vars.BIN_DIR }}/darwin-arm64
+      GOOS=darwin GOARCH=arm64 go build -tags="${{ .vars.RELEASE_TAGS }}" -ldflags="${{ .vars.LDFLAGS }}" -trimpath -o ${{ .vars.BIN_DIR }}/darwin-arm64/ ${{ .vars.MAIN_PACKAGE }}
     desc: build darwin arm64 binary
 
   win-amd64:
     run: |
-      mkdir -p ./bin/win-amd64
-      VERSION="$(cat VERSION)"
-      GOOS=windows GOARCH=amd64 go build -tags="osusergo netgo" -ldflags="-s -w -X main.Version=${VERSION}" -trimpath -o ./bin/win-amd64/ ./cmd/vorbere
+      mkdir -p ${{ .vars.BIN_DIR }}/win-amd64
+      GOOS=windows GOARCH=amd64 go build -tags="${{ .vars.RELEASE_TAGS }}" -ldflags="${{ .vars.LDFLAGS }}" -trimpath -o ${{ .vars.BIN_DIR }}/win-amd64/ ${{ .vars.MAIN_PACKAGE }}
     desc: build windows amd64 binary
 
   release-build:
@@ -65,12 +65,12 @@ tasks:
   release-archives:
     depends_on: [release-build]
     run: |
-      tar --gunzip --create --directory=./bin/linux-amd64/ --file=./vorbere_linux-amd64.tar.gz .
-      tar --gunzip --create --directory=./bin/linux-arm/ --file=./vorbere_linux-arm.tar.gz .
-      tar --gunzip --create --directory=./bin/linux-arm64/ --file=./vorbere_linux-arm64.tar.gz .
-      tar --gunzip --create --directory=./bin/darwin-amd64/ --file=./vorbere_darwin-amd64.tar.gz .
-      tar --gunzip --create --directory=./bin/darwin-arm64/ --file=./vorbere_darwin-arm64.tar.gz .
-      tar --gunzip --create --directory=./bin/win-amd64/ --file=./vorbere_win-amd64.tar.gz .
+      tar --gunzip --create --directory=${{ .vars.BIN_DIR }}/linux-amd64/ --file=./vorbere_linux-amd64.tar.gz .
+      tar --gunzip --create --directory=${{ .vars.BIN_DIR }}/linux-arm/ --file=./vorbere_linux-arm.tar.gz .
+      tar --gunzip --create --directory=${{ .vars.BIN_DIR }}/linux-arm64/ --file=./vorbere_linux-arm64.tar.gz .
+      tar --gunzip --create --directory=${{ .vars.BIN_DIR }}/darwin-amd64/ --file=./vorbere_darwin-amd64.tar.gz .
+      tar --gunzip --create --directory=${{ .vars.BIN_DIR }}/darwin-arm64/ --file=./vorbere_darwin-arm64.tar.gz .
+      tar --gunzip --create --directory=${{ .vars.BIN_DIR }}/win-amd64/ --file=./vorbere_win-amd64.tar.gz .
     desc: package release archives
 
   release:
@@ -78,11 +78,11 @@ tasks:
     desc: build and package release artifacts
 
   debug:
-    run: go run -tags="debug osusergo netgo" ./cmd/vorbere
+    run: go run -tags="${{ .vars.DEBUG_TAGS }}" ${{ .vars.MAIN_PACKAGE }}
     desc: run with debug tag
 
   vet:
-    run: go vet -tags="osusergo netgo" ./...
+    run: go vet -tags="${{ .vars.RELEASE_TAGS }}" ./...
     desc: run go vet
 
   staticcheck:
@@ -90,7 +90,7 @@ tasks:
     desc: run staticcheck
 
   govulncheck:
-    run: go tool govulncheck -tags "osusergo netgo" ./...
+    run: go tool govulncheck -tags "${{ .vars.RELEASE_TAGS }}" ./...
     desc: run govulncheck
 
   lint:
@@ -99,12 +99,12 @@ tasks:
 
   test:
     depends_on: [lint, build]
-    run: go test -race -tags="osusergo netgo" -v ./...
+    run: go test -race -tags="${{ .vars.RELEASE_TAGS }}" -v ./...
     desc: run tests
 
   clean:
     run: |
-      rm -fr ./bin
+      rm -fr ${{ .vars.BIN_DIR }}
       rm -f ./vorbere_*.tar.gz
       go clean
     desc: clean build artifacts
