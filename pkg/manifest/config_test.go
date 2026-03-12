@@ -348,3 +348,58 @@ func TestBuildSyncConfigRejectsUndefinedRepositoryHeaderEnvironmentVariable(t *t
 		t.Fatalf("expected undefined env var name, got: %v", err)
 	}
 }
+
+func TestBuildSyncConfigExpandsVarsInExtract(t *testing.T) {
+	cfg := &TaskConfig{
+		Version: 1,
+		Vars: map[string]string{
+			"TOOL": "mytool",
+		},
+		Repositories: []Repository{{
+			URL: "https://example.com/releases/",
+			Files: []RepositoryFile{{
+				FileName: "archive.tar.gz",
+				Encoding: "tar+gzip",
+				Extract:  "bin/${{ .vars.TOOL }}",
+				OutDir:   "/tmp/bin",
+				Rename:   "mytool",
+			}},
+		}},
+	}
+
+	resolved, err := BuildSyncConfig(cfg)
+	if err != nil {
+		t.Fatalf("BuildSyncConfig returned error: %v", err)
+	}
+	rule := resolved.Files[0]
+	if got, want := rule.Extract, "bin/mytool"; got != want {
+		t.Fatalf("extract not expanded: got=%q want=%q", got, want)
+	}
+}
+
+func TestBuildSyncConfigRejectsUndefinedVarsInExtract(t *testing.T) {
+	cfg := &TaskConfig{
+		Version: 1,
+		Repositories: []Repository{{
+			URL: "https://example.com/releases/",
+			Files: []RepositoryFile{{
+				FileName: "archive.tar.gz",
+				Encoding: "tar+gzip",
+				Extract:  "bin/${{ .vars.MISSING }}",
+				OutDir:   "/tmp/bin",
+			}},
+		}},
+	}
+
+	_, err := BuildSyncConfig(cfg)
+	if err == nil {
+		t.Fatalf("expected undefined var error")
+	}
+	message := err.Error()
+	if !strings.Contains(message, "repositories[0].files[0].extract") {
+		t.Fatalf("expected field path in error, got: %v", err)
+	}
+	if !strings.Contains(message, "MISSING") {
+		t.Fatalf("expected unresolved key in error, got: %v", err)
+	}
+}
