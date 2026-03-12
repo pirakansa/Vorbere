@@ -138,6 +138,16 @@ func expandRepositoryFileTemplates(repoIndex, fileIndex int, file RepositoryFile
 		return RepositoryFile{}, renameErr
 	}
 	file.Rename = rename
+
+	extract, extractErr := expandVarsTemplate(
+		file.Extract,
+		vars,
+		fmt.Sprintf("repositories[%d].files[%d].extract", repoIndex, fileIndex),
+	)
+	if extractErr != nil {
+		return RepositoryFile{}, extractErr
+	}
+	file.Extract = extract
 	return file, nil
 }
 
