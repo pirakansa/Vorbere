@@ -102,7 +102,7 @@ We follow the **Standard Go Project Layout**.
 
 ## CI Requirements
 
-GitHub Actions (`.github/workflows/go.yml`) runs the following:
+GitHub Actions (`.github/workflows/ci.yml`) runs the following:
 
 * `vorbere run check`
 * `vorbere run test`
