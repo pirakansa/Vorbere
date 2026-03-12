@@ -79,6 +79,7 @@ Template expansion is applied to string values in:
 - `repositories[].files[].file_name`
 - `repositories[].files[].out_dir`
 - `repositories[].files[].rename`
+- `repositories[].files[].extract`
 
 ### Processing order
 
