@@ -40,7 +40,7 @@ Implement approved specifications accurately, with clear traceability from spec 
    - Add or update tests for each implemented requirement.
    - Confirm edge/failure paths defined by the spec.
 5. Run full quality gates and report traceability
-   - Run lint, tests, and build.
+   - Run check, tests, and build.
    - Summarize requirement-to-code/test mapping for review.
    - Report any detected drift against the approved SoT.
 

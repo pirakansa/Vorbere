@@ -52,7 +52,7 @@ We follow the **Standard Go Project Layout**.
 ├─ pkg/                   # Reusable public logic
 ├─ test/                  # Test fixtures
 ├─ bin/                   # Build artifacts (generated; not tracked by Git)
-├─ vorbere.yaml              # Task definitions for vorbere
+├─ vorbere.yaml           # Task definitions for vorbere
 └─ docs/                  # Documentation
 ```
 
