@@ -76,7 +76,7 @@ For example, replace Makefile-based CI steps with:
 ```yaml
 - uses: actions/setup-go@v5
   with:
-    go-version: '^1.24.0'
+    go-version: '^1.27.0'
 
 - uses: pirakansa/vorbere@v0
   with:
